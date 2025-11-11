@@ -149,8 +149,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   return (
     <Card className="w-full mx-auto rounded-xl">
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          {selectedFile && uploadStatus === 'idle' && (
+        {selectedFile && uploadStatus === 'idle' && (
+          <div className="flex items-center justify-between">
             <Button
               variant="ghost"
               size="sm"
@@ -159,8 +159,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
             >
               Clear
             </Button>
-          )}
-        </div>
+          </div>
+        )}
 
         {!selectedFile ? (
           <div
