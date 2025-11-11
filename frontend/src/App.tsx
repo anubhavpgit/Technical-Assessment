@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Clock, Settings } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Sparkles } from 'lucide-react';
 import { VideoPlayer } from './components/video/VideoPlayer';
 import { VideoUpload } from './components/upload/VideoUpload';
 import { FilterGallery } from './components/filters/FilterGallery';
 import { VideoTimeline } from './components/filters/VideoTimeline';
 import { Button } from './components/common/Button';
 import { Card } from './components/common/Card';
+import { CustomScrollbar } from './components/common/CustomScrollbar';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
 import { Video, ViewMode, Filter, TimelineItem } from './types';
 import { generateId } from './utils/formatters';
 import { FILTERS } from './constants/filters';
-import { cn } from './utils/cn';
 import { videoUrl } from './consts';
 
 function App() {
@@ -30,17 +30,15 @@ function App() {
   const [appliedFilters, setAppliedFilters] = useState<string[]>([]);
 
   // UI state
-  const [activeTab, setActiveTab] = useState<'filters' | 'timeline' | 'settings'>('filters');
-  const [showUpload, setShowUpload] = useState(() => {
-    const savedVideo = localStorage.getItem('overlap-current-video');
-    return !savedVideo;
-  });
 
   // Mouse tracking for animated background
   const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
 
   // Video player hook
   const { videoRef, state: playerState, controls } = useVideoPlayer();
+
+  // Ref for scrolling to editor section
+  const editorSectionRef = useRef<HTMLDivElement>(null);
 
   // Track mouse movement
   useEffect(() => {
@@ -87,7 +85,10 @@ function App() {
 
   const handleVideoUpload = (video: Video) => {
     setCurrentVideo(video);
-    setShowUpload(false);
+    // Scroll to editor section after video is selected
+    setTimeout(() => {
+      editorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const handleUseDefaultVideo = () => {
@@ -102,7 +103,10 @@ function App() {
       uploadedAt: new Date(),
     };
     setCurrentVideo(defaultVideo);
-    setShowUpload(false);
+    // Scroll to editor section after video is selected
+    setTimeout(() => {
+      editorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const handleFilterSelect = (filter: Filter) => {
@@ -145,9 +149,13 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-notion-bg-secondary flex items-center justify-center p-2 sm:p-3 lg:p-6">
-      {/* Main Container with Background */}
-      <div className="relative w-full max-w-[98vw] h-[calc(100vh-1rem)] sm:h-[calc(100vh-1.5rem)] lg:h-[calc(100vh-3rem)] rounded-xl sm:rounded-2xl lg:rounded-3xl overflow-hidden shadow-notion-xl">
+    <>
+      {/* Custom Scrollbar */}
+      <CustomScrollbar />
+
+      <div className="min-h-screen bg-notion-bg-secondary overflow-x-hidden">
+        {/* Main Container with Background */}
+        <div className="relative w-full min-h-screen">
         {/* Animated Gradient Background */}
         <div className="absolute inset-0 overflow-hidden">
           {/* Base gradient layer */}
@@ -188,9 +196,9 @@ function App() {
         </div>
 
         {/* Content Container */}
-        <div className="relative z-10 flex flex-col h-full">
+        <div className="relative z-10 flex flex-col min-h-screen">
           {/* Floating Header */}
-          <header className="mx-3 sm:mx-auto mt-2 sm:mt-4 lg:mt-6 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl border border-notion-border shadow-notion-md w-auto sm:w-full max-w-6xl">
+          <header className="mx-3 sm:mx-6 lg:mx-auto mt-4 sm:mt-6 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl border border-notion-border shadow-notion-md w-auto sm:w-full max-w-6xl sticky top-4 z-50">
             <div className="px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2 sm:gap-3">
@@ -208,7 +216,7 @@ function App() {
                     </g>
                   </svg>
                   <div className="hidden sm:block">
-                    <p className="text-xs sm:text-sm text-notion-text-primary font-semibold">
+                    <p className="text-xs text-notion-text-primary font-semibold">
                       AI that clips, edits, and posts.
                     </p>
                   </div>
@@ -219,24 +227,15 @@ function App() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => setShowUpload(true)}
-                      className="font-bold"
-                    >
-                      Upload New Video
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
                       onClick={() => {
                         setCurrentVideo(null);
                         setTimelineItems([]);
-                        setShowUpload(true);
                         localStorage.removeItem('overlap-current-video');
                         localStorage.removeItem('overlap-timeline-items');
                       }}
                       className="font-bold"
                     >
-                      Clear
+                      Clear Video
                     </Button>
                   </div>
                 )}
@@ -245,8 +244,9 @@ function App() {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex items-center justify-center">
-            {showUpload ? (
+          <main className="flex-1">
+            {/* Video Upload Section - Full viewport */}
+            <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-3 sm:px-6 lg:px-8 py-6">
               <div className="w-full max-w-5xl">
                 <VideoUpload
                   onUploadComplete={handleVideoUpload}
@@ -254,140 +254,14 @@ function App() {
                   onUseDefaultVideo={handleUseDefaultVideo}
                 />
               </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Sidebar - Filters & Controls */}
-                <div className="lg:col-span-1 space-y-4">
-                  <Card>
-                    {/* Tabs */}
-                    <div className="flex items-center gap-1 bg-notion-bg-secondary rounded-notion p-1 mb-4">
-                      <button
-                        onClick={() => setActiveTab('filters')}
-                        className={cn(
-                          'flex items-center gap-2 px-3 py-2 rounded-notion text-sm font-medium transition-all duration-200 flex-1',
-                          activeTab === 'filters'
-                            ? 'bg-white text-notion-text-primary shadow-notion'
-                            : 'text-notion-text-secondary hover:text-notion-text-primary'
-                        )}
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Filters
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('timeline')}
-                        className={cn(
-                          'flex items-center gap-2 px-3 py-2 rounded-notion text-sm font-medium transition-all duration-200 flex-1',
-                          activeTab === 'timeline'
-                            ? 'bg-white text-notion-text-primary shadow-notion'
-                            : 'text-notion-text-secondary hover:text-notion-text-primary'
-                        )}
-                      >
-                        <Clock className="w-4 h-4" />
-                        Timeline
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('settings')}
-                        className={cn(
-                          'flex items-center gap-2 px-3 py-2 rounded-notion text-sm font-medium transition-all duration-200 flex-1',
-                          activeTab === 'settings'
-                            ? 'bg-white text-notion-text-primary shadow-notion'
-                            : 'text-notion-text-secondary hover:text-notion-text-primary'
-                        )}
-                      >
-                        <Settings className="w-4 h-4" />
-                        Settings
-                      </button>
-                    </div>
+            </div>
 
-                    {/* Tab Content */}
-                    {activeTab === 'filters' && (
-                      <div className="space-y-4">
-                        <FilterGallery
-                          onFilterSelect={handleFilterSelect}
-                          selectedFilterId={selectedFilter?.id}
-                        />
-                        {selectedFilter && (
-                          <Button
-                            variant="primary"
-                            onClick={handleAddFilterToTimeline}
-                            className="w-full"
-                            disabled={!currentVideo}
-                          >
-                            Add to Timeline at {Math.floor(playerState.currentTime)}s
-                          </Button>
-                        )}
-                      </div>
-                    )}
-
-                    {activeTab === 'timeline' && (
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-semibold text-notion-text-primary">
-                          Applied Filters ({timelineItems.length})
-                        </h3>
-                        {timelineItems.length === 0 ? (
-                          <p className="text-sm text-notion-text-tertiary text-center py-8">
-                            No filters applied yet
-                          </p>
-                        ) : (
-                          <div className="space-y-2">
-                            {timelineItems.map((item) => (
-                              <Card key={item.id} padding="sm" className="text-sm">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-medium text-notion-text-primary">
-                                    {item.filterName}
-                                  </span>
-                                  <button
-                                    onClick={() => handleRemoveFilterFromTimeline(item.id)}
-                                    className="text-notion-accent-red hover:underline text-xs"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                                <p className="text-xs text-notion-text-tertiary mt-1">
-                                  {item.startTime.toFixed(1)}s - {item.endTime.toFixed(1)}s
-                                </p>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {activeTab === 'settings' && (
-                      <div className="space-y-4">
-                        <div>
-                          <h3 className="text-sm font-semibold text-notion-text-primary mb-2">
-                            Video Settings
-                          </h3>
-                          <div className="space-y-3 text-sm">
-                            <div>
-                              <span className="text-notion-text-secondary">Resolution:</span>
-                              <span className="text-notion-text-primary ml-2">
-                                {currentVideo?.resolution.width} x {currentVideo?.resolution.height}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-notion-text-secondary">Duration:</span>
-                              <span className="text-notion-text-primary ml-2">
-                                {playerState.duration.toFixed(2)}s
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-notion-text-secondary">Format:</span>
-                              <span className="text-notion-text-primary ml-2">
-                                {currentVideo?.format || 'MP4'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                </div>
-
-                {/* Main Content - Video Player */}
-                <div className="lg:col-span-2 space-y-4">
-                  <Card>
+            {/* Video Editor Section - Only show if video is selected */}
+            {currentVideo && (
+              <div ref={editorSectionRef} className="min-h-screen px-3 sm:px-6 lg:px-8 py-6 pb-12">
+                <div className="w-full max-w-5xl mx-auto space-y-6">
+                  {/* Video Player */}
+                  <Card className="rounded-lg">
                     <VideoPlayer
                       ref={videoRef}
                       src={currentVideo?.url || ''}
@@ -397,24 +271,56 @@ function App() {
                     />
                   </Card>
 
-                  {/* Timeline */}
-                  <VideoTimeline
-                    duration={playerState.duration}
-                    currentTime={playerState.currentTime}
-                    timelineItems={timelineItems}
-                    onTimelineItemRemove={handleRemoveFilterFromTimeline}
-                    onTimelineItemUpdate={handleUpdateFilterInTimeline}
-                    onSeek={controls.seek}
-                    isPlaying={playerState.isPlaying}
-                    onPlayPause={controls.togglePlayPause}
-                  />
+                  {/* Keyframes Row */}
+                  <Card className="rounded-lg">
+                    <div className="space-y-3">
+                      <h3 className="text-base font-bold text-notion-text-primary">Keyframes</h3>
+                      <VideoTimeline
+                        duration={playerState.duration}
+                        currentTime={playerState.currentTime}
+                        timelineItems={timelineItems}
+                        onTimelineItemRemove={handleRemoveFilterFromTimeline}
+                        onTimelineItemUpdate={handleUpdateFilterInTimeline}
+                        onSeek={controls.seek}
+                        isPlaying={playerState.isPlaying}
+                        onPlayPause={controls.togglePlayPause}
+                      />
+                    </div>
+                  </Card>
+
+                  {/* Filters Row */}
+                  <Card className="rounded-lg">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-base font-bold text-notion-text-primary flex items-center gap-2">
+                          <Sparkles className="w-5 h-5" />
+                          Filters
+                        </h3>
+                      </div>
+                      <FilterGallery
+                        onFilterSelect={handleFilterSelect}
+                        selectedFilterId={selectedFilter?.id}
+                      />
+                      {selectedFilter && (
+                        <Button
+                          variant="primary"
+                          onClick={handleAddFilterToTimeline}
+                          className="w-full"
+                          disabled={!currentVideo}
+                        >
+                          Add to Timeline at {Math.floor(playerState.currentTime)}s
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
                 </div>
               </div>
             )}
           </main>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

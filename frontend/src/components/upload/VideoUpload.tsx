@@ -147,7 +147,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   };
 
   return (
-    <Card className="w-full mx-auto rounded-xl">
+    <Card className="w-full mx-auto rounded-lg">
       <div className="space-y-4">
         {selectedFile && uploadStatus === 'idle' && (
           <div className="flex items-center justify-between">
@@ -165,7 +165,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
         {!selectedFile ? (
           <div
             className={cn(
-              'relative border-2 border-dashed rounded-xl p-8 sm:p-12 lg:p-16 text-center transition-all duration-200',
+              'relative border-2 border-dashed rounded-lg p-8 sm:p-12 lg:p-16 text-center transition-all duration-200',
               isDragging
                 ? 'border-notion-accent-blue bg-notion-surface-blue'
                 : 'border-notion-border hover:border-notion-accent-blue bg-notion-bg-secondary'

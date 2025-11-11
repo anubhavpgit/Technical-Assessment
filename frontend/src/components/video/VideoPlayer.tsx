@@ -27,9 +27,9 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     };
 
     const containerClasses = {
-      theater: 'w-full max-w-7xl mx-auto aspect-video bg-black',
-      window: 'w-full max-w-4xl mx-auto aspect-video shadow-notion-xl rounded-notion overflow-hidden',
-      editor: 'w-full aspect-video bg-notion-bg-secondary rounded-notion overflow-hidden',
+      theater: 'w-full mx-auto aspect-video bg-black',
+      window: 'w-full mx-auto aspect-video shadow-notion-xl rounded-lg overflow-hidden',
+      editor: 'w-full aspect-video bg-notion-bg-secondary rounded-lg overflow-hidden',
     };
 
     const appliedFilters = filters.join(' ');
@@ -123,14 +123,6 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           )}
         </div>
 
-        {/* Mode Description */}
-        <div className="text-center">
-          <p className="text-xs text-notion-text-tertiary">
-            {viewMode === 'theater' && 'Cinematic theater experience with immersive viewing'}
-            {viewMode === 'window' && 'Floating window mode with elegant frame'}
-            {viewMode === 'editor' && 'Professional editor mode with timeline controls'}
-          </p>
-        </div>
       </div>
     );
   }
