@@ -235,11 +235,11 @@ function App() {
       scrollbarMaxSize={120}
       style={{ maxHeight: '100vh' }}
     >
-      <div className="min-h-screen bg-notion-bg-secondary overflow-x-hidden">
+      <div className="min-h-screen bg-notion-bg-secondary flex items-center justify-center p-3 sm:p-4 lg:p-6">
         {/* Main Container with Background */}
-        <div className="relative w-full min-h-screen">
+        <div className="relative w-full max-w-[95vw] min-h-[calc(100vh-3rem)] rounded-3xl overflow-hidden shadow-notion-xl">
           {/* Animated Gradient Background */}
-          <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden rounded-3xl">
             {/* Base gradient layer */}
             <div
               className="absolute inset-0"
@@ -278,16 +278,16 @@ function App() {
           </div>
 
           {/* Content Container */}
-          <div className="relative z-10 flex flex-col min-h-screen">
+          <div className="relative z-10 flex flex-col min-h-[calc(100vh-3rem)]">
             {/* Floating Header */}
-            <header className="mx-3 sm:mx-6 lg:mx-auto mt-4 sm:mt-6 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl border border-notion-border shadow-notion-md w-auto sm:w-full max-w-6xl sticky top-4 z-50">
-              <div className="px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-2 sm:gap-3">
+            <header className="mx-auto mt-4 sm:mt-6 bg-white/95 backdrop-blur-sm rounded-xl border border-notion-border shadow-notion-md w-full max-w-4xl">
+              <div className="px-4 sm:px-6 lg:px-8 py-4">
+                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 120 31"
-                    className="h-6 sm:h-8"
+                    className="h-8"
                     aria-label="Overlap Logo"
                   >
                     <g transform="translate(0.269 0.025)">
@@ -330,8 +330,8 @@ function App() {
 
           {/* Main Content */}
           <main className="flex-1">
-            {/* Video Upload Section - Full viewport */}
-            <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-3 sm:px-6 lg:px-8 py-6">
+            {/* Video Upload Section */}
+            <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6">
               <div className="w-full max-w-5xl">
                 <VideoUpload
                   onUploadComplete={handleVideoUpload}
@@ -376,7 +376,7 @@ function App() {
 
             {/* Processed Video Section - Only show after successful processing */}
             {processedVideo && processingStatus === 'success' && (
-              <div ref={editorSectionRef} className="px-3 sm:px-6 lg:px-8 py-6 pb-12">
+              <div ref={editorSectionRef} className="px-4 sm:px-6 lg:px-8 py-6 pb-12">
                 <div className="w-full max-w-5xl mx-auto space-y-6">
                   <h2 className="text-xl font-bold text-white">Processed Video</h2>
 
