@@ -101,7 +101,14 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           <video
             ref={ref}
             src={src}
-            onLoadedMetadata={onLoadedMetadata}
+            key={src}
+            onLoadedMetadata={(e) => {
+              console.log('Video metadata loaded, duration:', (e.target as HTMLVideoElement).duration);
+              onLoadedMetadata?.();
+            }}
+            onError={(e) => {
+              console.error('Video load error:', e);
+            }}
             controls
             crossOrigin="anonymous"
             preload="metadata"

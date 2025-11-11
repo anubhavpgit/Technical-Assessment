@@ -79,6 +79,12 @@ export const useVideoPlayer = () => {
     };
 
     const handleLoadedMetadata = () => {
+      console.log('useVideoPlayer: Metadata loaded, duration =', video.duration);
+      setState((prev) => ({ ...prev, duration: video.duration }));
+    };
+
+    const handleDurationChange = () => {
+      console.log('useVideoPlayer: Duration changed, duration =', video.duration);
       setState((prev) => ({ ...prev, duration: video.duration }));
     };
 
@@ -98,8 +104,15 @@ export const useVideoPlayer = () => {
       }));
     };
 
+    // Check if video already has metadata loaded
+    if (video.duration && isFinite(video.duration) && video.duration > 0) {
+      console.log('useVideoPlayer: Video already has duration on mount:', video.duration);
+      setState((prev) => ({ ...prev, duration: video.duration }));
+    }
+
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('durationchange', handleDurationChange);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
     video.addEventListener('volumechange', handleVolumeChange);
@@ -107,11 +120,12 @@ export const useVideoPlayer = () => {
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('durationchange', handleDurationChange);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('volumechange', handleVolumeChange);
     };
-  }, []);
+  }, [videoRef.current]);
 
   return {
     videoRef,

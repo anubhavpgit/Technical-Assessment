@@ -29,6 +29,11 @@ export const VideoTimeline: React.FC<VideoTimelineProps> = ({
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('VideoTimeline: duration =', duration, 'isNaN =', isNaN(duration), 'isFinite =', isFinite(duration));
+  }, [duration]);
+
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!timelineRef.current || !duration || duration <= 0) return;
 
@@ -74,9 +79,10 @@ export const VideoTimeline: React.FC<VideoTimelineProps> = ({
 
       {/* Timeline Track */}
       <div className="space-y-2">
-        {duration <= 0 && (
+        {(!duration || duration <= 0 || !isFinite(duration) || isNaN(duration)) && (
           <div className="text-center py-4 text-notion-text-tertiary text-sm">
-            Loading video timeline...
+            <p>Loading video timeline...</p>
+            <p className="text-xs mt-1">Duration: {duration || 'N/A'}</p>
           </div>
         )}
         <div
@@ -85,19 +91,21 @@ export const VideoTimeline: React.FC<VideoTimelineProps> = ({
           onClick={handleTimelineClick}
         >
           {/* Time markers */}
-          <div className="absolute inset-0 flex items-end justify-between px-2 pb-1">
-            {Array.from({ length: 11 }).map((_, i) => {
-              const time = (duration / 10) * i;
-              return (
-                <div key={i} className="flex flex-col items-center gap-1">
-                  <div className="h-2 w-px bg-notion-border" />
-                  <span className="text-xs text-notion-text-tertiary font-mono">
-                    {formatTime(time)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {duration > 0 && isFinite(duration) && (
+            <div className="absolute inset-0 flex items-end justify-between px-2 pb-1">
+              {Array.from({ length: 11 }).map((_, i) => {
+                const time = (duration / 10) * i;
+                return (
+                  <div key={i} className="flex flex-col items-center gap-1">
+                    <div className="h-2 w-px bg-notion-border" />
+                    <span className="text-xs text-notion-text-tertiary font-mono">
+                      {formatTime(time)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Timeline Items (Filters) */}
           <div className="absolute inset-0 top-0 h-8">
