@@ -214,7 +214,7 @@ function App() {
         'background',
         'keep_original',
         0.5,
-        true // use_sam
+        false // use_sam
       );
 
       if (!response.success || !response.data?.job_id) {
@@ -462,8 +462,8 @@ function App() {
                                   onClick={() => setSelectedFilterType(preview.filter_id as 'grayscale' | 'blur' | 'sepia')}
                                   disabled={processingStatus === 'processing'}
                                   className={`relative group overflow-hidden rounded-lg transition-all duration-200 ${selectedFilterType === preview.filter_id
-                                      ? 'ring-2 ring-[#ff3c00] shadow-lg'
-                                      : 'ring-1 ring-notion-border hover:ring-notion-accent-blue'
+                                    ? 'ring-2 ring-[#ff3c00] shadow-lg'
+                                    : 'ring-1 ring-notion-border hover:ring-notion-accent-blue'
                                     } ${processingStatus === 'processing' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   <div className="aspect-video bg-black">
@@ -658,8 +658,8 @@ function App() {
                                 key={preview.filter_id}
                                 onClick={() => setSelectedFilterType(preview.filter_id as 'grayscale' | 'blur' | 'sepia')}
                                 className={`relative group overflow-hidden rounded-lg transition-all duration-200 ${selectedFilterType === preview.filter_id
-                                    ? 'ring-2 ring-[#ff3c00] shadow-lg'
-                                    : 'ring-1 ring-notion-border hover:ring-notion-accent-blue'
+                                  ? 'ring-2 ring-[#ff3c00] shadow-lg'
+                                  : 'ring-1 ring-notion-border hover:ring-notion-accent-blue'
                                   }`}
                               >
                                 <div className="aspect-video bg-black">
