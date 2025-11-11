@@ -186,6 +186,7 @@ export async function segmentBackground(
 
 /**
  * Apply selective filter (background or person only)
+ * Legacy endpoint - use processVideoWithAI for new implementation
  */
 export async function applySelectiveFilter(
   videoId: string,
@@ -204,6 +205,52 @@ export async function applySelectiveFilter(
       endTime,
     }),
   });
+}
+
+/**
+ * Process video with AI-powered person detection and selective filtering
+ */
+export async function processVideoWithAI(
+  videoId: string,
+  filterType: 'grayscale' | 'blur' | 'sepia' = 'grayscale',
+  applyTo: 'background' | 'person' = 'background',
+  noPersonBehavior: 'keep_original' | 'apply_filter' = 'keep_original',
+  confidenceThreshold: number = 0.5
+): Promise<ApiResponse<any>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/process/selective-filter`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        video_id: videoId,
+        filter_type: filterType,
+        apply_to: applyTo,
+        no_person_behavior: noPersonBehavior,
+        confidence_threshold: confidenceThreshold,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || `HTTP error! status: ${response.status}`,
+      };
+    }
+
+    return {
+      success: true,
+      data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Processing failed',
+    };
+  }
 }
 
 /**

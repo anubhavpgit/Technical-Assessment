@@ -20,7 +20,7 @@ export const Button: React.FC<ButtonProps> = ({
   const baseClasses = 'inline-flex items-center justify-center gap-2 rounded-notion font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variantClasses = {
-    primary: 'bg-notion-accent-blue text-white hover:shadow-notion-md focus:ring-notion-accent-blue active:scale-95',
+    primary: 'bg-[#ff3c00] text-white hover:shadow-notion-md hover:bg-[#e63600] focus:ring-[#ff3c00] active:scale-95',
     secondary: 'bg-notion-bg-tertiary text-notion-text-primary border border-notion-border hover:bg-notion-bg-secondary focus:ring-notion-accent-blue',
     ghost: 'bg-transparent text-notion-text-secondary hover:bg-notion-bg-tertiary focus:ring-notion-accent-gray',
     danger: 'bg-notion-accent-red text-white hover:shadow-notion-md focus:ring-notion-accent-red active:scale-95',

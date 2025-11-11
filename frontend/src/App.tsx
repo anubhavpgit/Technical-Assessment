@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
 import { VideoPlayer } from './components/video/VideoPlayer';
@@ -13,6 +13,7 @@ import { Video, ViewMode, Filter, TimelineItem } from './types';
 import { generateId } from './utils/formatters';
 import { FILTERS } from './constants/filters';
 import { videoUrl } from './consts';
+import { processVideoWithAI, uploadVideo } from './services/api';
 
 function App() {
   // Video state
@@ -21,6 +22,12 @@ function App() {
     return savedVideo ? JSON.parse(savedVideo) : null;
   });
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
+
+  // Processing state
+  const [processingStatus, setProcessingStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [processedVideo, setProcessedVideo] = useState<Video | null>(null);
+  const [processingError, setProcessingError] = useState<string>('');
+  const [isUploadingSample, setIsUploadingSample] = useState(false);
 
   // Filter state
   const [selectedFilter, setSelectedFilter] = useState<Filter | null>(null);
@@ -92,22 +99,102 @@ function App() {
     }, 100);
   };
 
-  const handleUseDefaultVideo = () => {
-    const defaultVideo: Video = {
-      id: 'default',
-      filename: 'Default Video',
-      url: videoUrl,
-      duration: 0,
-      resolution: { width: 1920, height: 1080 },
-      format: 'mp4',
-      size: 0,
-      uploadedAt: new Date(),
-    };
-    setCurrentVideo(defaultVideo);
-    // Scroll to editor section after video is selected
-    setTimeout(() => {
-      editorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+  const handleUseDefaultVideo = async () => {
+    setIsUploadingSample(true);
+    try {
+      // Fetch the sample video from URL
+      const response = await fetch(videoUrl);
+      if (!response.ok) {
+        console.error('Failed to fetch sample video');
+        setIsUploadingSample(false);
+        return;
+      }
+
+      const blob = await response.blob();
+      const file = new File([blob], 'sample-video.mp4', { type: 'video/mp4' });
+
+      // Upload to backend to get video_id
+      const uploadResponse = await uploadVideo(file);
+
+      if (uploadResponse.success && uploadResponse.data) {
+        const defaultVideo: Video = {
+          id: uploadResponse.data.video_id || 'default',
+          video_id: uploadResponse.data.video_id,
+          filename: uploadResponse.data.original_filename || 'Sample Video',
+          url: videoUrl,
+          duration: 0,
+          resolution: { width: 1920, height: 1080 },
+          format: 'mp4',
+          size: uploadResponse.data.file_size || 0,
+          uploadedAt: new Date(),
+        };
+        setCurrentVideo(defaultVideo);
+        setIsUploadingSample(false);
+        // Scroll to editor section after video is selected
+        setTimeout(() => {
+          editorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else {
+        setIsUploadingSample(false);
+      }
+    } catch (error) {
+      console.error('Error loading sample video:', error);
+      setIsUploadingSample(false);
+    }
+  };
+
+  const handleProcessVideo = async () => {
+    if (!currentVideo?.video_id) {
+      setProcessingError('No video ID available for processing');
+      setProcessingStatus('error');
+      return;
+    }
+
+    setProcessingStatus('processing');
+    setProcessingError('');
+
+    try {
+      const response = await processVideoWithAI(
+        currentVideo.video_id,
+        'grayscale',
+        'background',
+        'keep_original',
+        0.5
+      );
+
+      if (response.success && response.data) {
+        setProcessingStatus('success');
+
+        // Create a new Video object with the processed video
+        const processed: Video = {
+          id: response.data.processed_video_id,
+          video_id: response.data.processed_video_id,
+          filename: `Processed - ${currentVideo.filename}`,
+          url: `http://127.0.0.1:8080${response.data.download_url}`,
+          duration: response.data.video_properties?.duration || 0,
+          resolution: {
+            width: response.data.video_properties?.width || 1920,
+            height: response.data.video_properties?.height || 1080,
+          },
+          format: 'mp4',
+          size: 0,
+          uploadedAt: new Date(),
+        };
+
+        setProcessedVideo(processed);
+
+        // Scroll to processed video section
+        setTimeout(() => {
+          editorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else {
+        setProcessingStatus('error');
+        setProcessingError(response.error || 'Processing failed');
+      }
+    } catch (error) {
+      setProcessingStatus('error');
+      setProcessingError(error instanceof Error ? error.message : 'Processing failed');
+    }
   };
 
   const handleFilterSelect = (filter: Filter) => {
@@ -232,6 +319,9 @@ function App() {
                       size="sm"
                       onClick={() => {
                         setCurrentVideo(null);
+                        setProcessedVideo(null);
+                        setProcessingStatus('idle');
+                        setProcessingError('');
                         setTimelineItems([]);
                         localStorage.removeItem('overlap-current-video');
                         localStorage.removeItem('overlap-timeline-items');
@@ -259,15 +349,67 @@ function App() {
               </div>
             </div>
 
-            {/* Video Editor Section - Only show if video is selected */}
+            {/* Original Video Section - Show when video is selected */}
             {currentVideo && (
-              <div ref={editorSectionRef} className="min-h-screen px-3 sm:px-6 lg:px-8 py-6 pb-12">
+              <div ref={editorSectionRef} className="px-3 sm:px-6 lg:px-8 py-6">
                 <div className="w-full max-w-5xl mx-auto space-y-6">
                   {/* Video Player */}
                   <Card className="rounded-lg">
                     <VideoPlayer
                       ref={videoRef}
                       src={currentVideo?.url || ''}
+                      viewMode={viewMode}
+                      onViewModeChange={setViewMode}
+                      filters={appliedFilters}
+                    />
+                  </Card>
+
+                  {/* Process Button - Show if not yet processed */}
+                  {processingStatus !== 'success' && (
+                    <div className="flex flex-col items-center gap-4">
+                      <Button
+                        variant="primary"
+                        onClick={handleProcessVideo}
+                        disabled={isUploadingSample || processingStatus === 'processing' || !currentVideo?.video_id}
+                        className="font-semibold text-sm px-6 py-3"
+                      >
+                        {isUploadingSample ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Loading Sample Video...
+                          </>
+                        ) : processingStatus === 'processing' ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Processing Video...
+                          </>
+                        ) : (
+                          'Process Video'
+                        )}
+                      </Button>
+
+                      {processingStatus === 'error' && processingError && (
+                        <Card className="w-full rounded-lg bg-notion-surface-red border-notion-accent-red">
+                          <p className="text-sm text-notion-accent-red font-semibold">{processingError}</p>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Processed Video Section - Only show after successful processing */}
+            {processedVideo && processingStatus === 'success' && (
+              <div className="px-3 sm:px-6 lg:px-8 py-6 pb-12">
+                <div className="w-full max-w-5xl mx-auto space-y-6">
+                  <h2 className="text-xl font-bold text-notion-text-primary">Processed Video</h2>
+
+                  {/* Video Player */}
+                  <Card className="rounded-lg">
+                    <VideoPlayer
+                      ref={videoRef}
+                      src={processedVideo?.url || ''}
                       viewMode={viewMode}
                       onViewModeChange={setViewMode}
                       filters={appliedFilters}
@@ -309,7 +451,7 @@ function App() {
                           variant="primary"
                           onClick={handleAddFilterToTimeline}
                           className="w-full"
-                          disabled={!currentVideo}
+                          disabled={!processedVideo}
                         >
                           Add to Timeline at {Math.floor(playerState.currentTime)}s
                         </Button>
