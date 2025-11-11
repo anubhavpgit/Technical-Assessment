@@ -44,6 +44,36 @@
   body {
     -ms-overflow-style: none;
   }
+
+  /* SimpleBar custom styling */
+  .custom-simplebar {
+    height: 100vh;
+  }
+
+  .custom-simplebar .simplebar-track.simplebar-vertical {
+    width: 8px;
+    right: 8px;
+    background: transparent;
+  }
+
+  .custom-simplebar .simplebar-scrollbar,
+  .custom-simplebar .simplebar-track.simplebar-vertical {
+    cursor: pointer;
+  }
+
+  .custom-simplebar .simplebar-scrollbar::before {
+    left: 0;
+    right: 0;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.2);
+    transition: background 0.2s ease, width 0.2s ease;
+  }
+
+  .custom-simplebar .simplebar-scrollbar.simplebar-visible::before,
+  .custom-simplebar .simplebar-scrollbar:active::before,
+  .custom-simplebar:hover .simplebar-scrollbar::before {
+    background: rgba(0, 0, 0, 0.4);
+  }
 }
 
 @layer components {

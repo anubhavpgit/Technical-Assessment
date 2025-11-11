@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Sparkles } from 'lucide-react';
+import SimpleBar from 'simplebar-react';
+import 'simplebar-react/dist/simplebar.min.css';
 import { VideoPlayer } from './components/video/VideoPlayer';
 import { VideoUpload } from './components/upload/VideoUpload';
 import { FilterGallery } from './components/filters/FilterGallery';
 import { VideoTimeline } from './components/filters/VideoTimeline';
 import { Button } from './components/common/Button';
 import { Card } from './components/common/Card';
-import { CustomScrollbar } from './components/common/CustomScrollbar';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
 import { Video, ViewMode, Filter, TimelineItem } from './types';
 import { generateId } from './utils/formatters';
@@ -149,28 +150,30 @@ function App() {
   };
 
   return (
-    <>
-      {/* Custom Scrollbar */}
-      <CustomScrollbar />
-
+    <SimpleBar
+      className="custom-simplebar h-screen"
+      autoHide={false}
+      scrollbarMaxSize={120}
+      style={{ maxHeight: '100vh' }}
+    >
       <div className="min-h-screen bg-notion-bg-secondary overflow-x-hidden">
         {/* Main Container with Background */}
         <div className="relative w-full min-h-screen">
-        {/* Animated Gradient Background */}
-        <div className="absolute inset-0 overflow-hidden">
-          {/* Base gradient layer */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background: 'linear-gradient(135deg, #ffe8d6 0%, #ffd6ba 100%)',
-            }}
-          />
+          {/* Animated Gradient Background */}
+          <div className="absolute inset-0 overflow-hidden">
+            {/* Base gradient layer */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: 'linear-gradient(135deg, #ffe8d6 0%, #ffd6ba 100%)',
+              }}
+            />
 
-          {/* Dynamic gradient blobs that follow mouse */}
-          <div
-            className="absolute inset-0 transition-all duration-700 ease-out"
-            style={{
-              background: `
+            {/* Dynamic gradient blobs that follow mouse */}
+            <div
+              className="absolute inset-0 transition-all duration-700 ease-out"
+              style={{
+                background: `
                 radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, #f5735b 0%, transparent 40%),
                 radial-gradient(circle at ${100 - mousePosition.x}% ${mousePosition.y}%, #e85d47 0%, transparent 35%),
                 radial-gradient(circle at ${mousePosition.x}% ${100 - mousePosition.y}%, #f7795d 0%, transparent 45%),
@@ -178,29 +181,29 @@ function App() {
                 radial-gradient(circle at 20% 80%, #ffd194 0%, transparent 50%),
                 radial-gradient(circle at 80% 20%, #ffa574 0%, transparent 50%)
               `,
-              filter: 'blur(60px)',
-            }}
-          />
+                filter: 'blur(60px)',
+              }}
+            />
 
-          {/* Additional animated layer for depth */}
-          <div
-            className="absolute inset-0 animate-gradient"
-            style={{
-              background: `
+            {/* Additional animated layer for depth */}
+            <div
+              className="absolute inset-0 animate-gradient"
+              style={{
+                background: `
                 radial-gradient(circle at ${50 - (mousePosition.x - 50) * 0.2}% ${50 - (mousePosition.y - 50) * 0.2}%, #c73e2e 0%, transparent 40%)
               `,
-              filter: 'blur(80px)',
-              opacity: 0.6,
-            }}
-          />
-        </div>
+                filter: 'blur(80px)',
+                opacity: 0.6,
+              }}
+            />
+          </div>
 
-        {/* Content Container */}
-        <div className="relative z-10 flex flex-col min-h-screen">
-          {/* Floating Header */}
-          <header className="mx-3 sm:mx-6 lg:mx-auto mt-4 sm:mt-6 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl border border-notion-border shadow-notion-md w-auto sm:w-full max-w-6xl sticky top-4 z-50">
-            <div className="px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-              <div className="flex items-center justify-between flex-wrap gap-3">
+          {/* Content Container */}
+          <div className="relative z-10 flex flex-col min-h-screen">
+            {/* Floating Header */}
+            <header className="mx-3 sm:mx-6 lg:mx-auto mt-4 sm:mt-6 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl border border-notion-border shadow-notion-md w-auto sm:w-full max-w-6xl sticky top-4 z-50">
+              <div className="px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -319,8 +322,8 @@ function App() {
           </main>
         </div>
       </div>
-      </div>
-    </>
+    </div>
+    </SimpleBar>
   );
 }
 
