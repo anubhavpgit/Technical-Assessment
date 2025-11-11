@@ -145,9 +145,9 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-notion-bg-secondary flex items-center justify-center p-3 sm:p-4 lg:p-6">
+    <div className="min-h-screen bg-notion-bg-secondary flex items-center justify-center p-2 sm:p-3 lg:p-6">
       {/* Main Container with Background */}
-      <div className="relative w-full max-w-[95vw] min-h-[calc(100vh-3rem)] rounded-3xl overflow-hidden shadow-notion-xl">
+      <div className="relative w-full max-w-[98vw] h-[calc(100vh-1rem)] sm:h-[calc(100vh-1.5rem)] lg:h-[calc(100vh-3rem)] rounded-xl sm:rounded-2xl lg:rounded-3xl overflow-hidden shadow-notion-xl">
         {/* Animated Gradient Background */}
         <div className="absolute inset-0 overflow-hidden">
           {/* Base gradient layer */}
@@ -188,16 +188,16 @@ function App() {
         </div>
 
         {/* Content Container */}
-        <div className="relative z-10 flex flex-col min-h-[calc(100vh-4rem)]">
+        <div className="relative z-10 flex flex-col h-full">
           {/* Floating Header */}
-          <header className="mx-auto mt-4 sm:mt-6 bg-white/95 backdrop-blur-sm rounded-xl border border-notion-border shadow-notion-md w-full max-w-4xl">
-            <div className="px-4 sm:px-6 lg:px-8 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+          <header className="mx-3 sm:mx-auto mt-2 sm:mt-4 lg:mt-6 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl border border-notion-border shadow-notion-md w-auto sm:w-full max-w-6xl">
+            <div className="px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 120 31"
-                    className="h-8"
+                    className="h-6 sm:h-8"
                     aria-label="Overlap Logo"
                   >
                     <g transform="translate(0.269 0.025)">
@@ -207,8 +207,8 @@ function App() {
                       />
                     </g>
                   </svg>
-                  <div>
-                    <p className="text-xs text-notion-text-primary font-semibold">
+                  <div className="hidden sm:block">
+                    <p className="text-xs sm:text-sm text-notion-text-primary font-semibold">
                       AI that clips, edits, and posts.
                     </p>
                   </div>
@@ -245,9 +245,9 @@ function App() {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-center">
+          <main className="flex-1 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex items-center justify-center">
             {showUpload ? (
-              <div className="w-full max-w-4xl">
+              <div className="w-full max-w-5xl">
                 <VideoUpload
                   onUploadComplete={handleVideoUpload}
                   onUploadError={(error) => console.error('Upload error:', error)}

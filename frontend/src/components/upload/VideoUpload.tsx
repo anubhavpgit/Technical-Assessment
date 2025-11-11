@@ -147,10 +147,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto rounded-xl">
+    <Card className="w-full mx-auto rounded-xl">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-notion-text-primary">Upload Video</h3>
           {selectedFile && uploadStatus === 'idle' && (
             <Button
               variant="ghost"
@@ -166,7 +165,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
         {!selectedFile ? (
           <div
             className={cn(
-              'relative border-2 border-dashed rounded-notion p-12 text-center transition-all duration-200',
+              'relative border-2 border-dashed rounded-xl p-8 sm:p-12 lg:p-16 text-center transition-all duration-200',
               isDragging
                 ? 'border-notion-accent-blue bg-notion-surface-blue'
                 : 'border-notion-border hover:border-notion-accent-blue bg-notion-bg-secondary'
@@ -184,30 +183,30 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
               className="hidden"
             />
 
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-4 sm:gap-6 lg:gap-8">
               <div className={cn(
-                'w-16 h-16 rounded-full flex items-center justify-center',
+                'w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full flex items-center justify-center',
                 isDragging ? 'bg-notion-accent-blue' : 'bg-notion-bg-tertiary'
               )}>
                 <Upload className={cn(
-                  'w-8 h-8',
+                  'w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12',
                   isDragging ? 'text-white' : 'text-notion-text-secondary'
                 )} />
               </div>
 
-              <div className="space-y-2">
-                <p className="text-notion-text-primary font-bold">
+              <div className="space-y-2 sm:space-y-3 lg:space-y-4">
+                <p className="text-lg sm:text-xl lg:text-2xl text-notion-text-primary font-bold">
                   {isDragging ? 'Drop video here' : 'Drag and drop your video here'}
                 </p>
-                <p className="text-sm text-notion-text-tertiary font-semibold">
+                <p className="text-base sm:text-lg lg:text-xl text-notion-text-tertiary font-semibold">
                   or
                 </p>
-                <Button variant="secondary" onClick={handleBrowseClick} className="font-bold">
+                <Button variant="secondary" onClick={handleBrowseClick} className="font-bold text-sm sm:text-base lg:text-lg px-4 py-2 sm:px-6 sm:py-2.5 lg:px-8 lg:py-3">
                   Browse Files
                 </Button>
               </div>
 
-              <div className="text-xs text-notion-text-tertiary space-y-1 font-semibold">
+              <div className="text-xs sm:text-sm lg:text-base text-notion-text-tertiary space-y-1 sm:space-y-1.5 lg:space-y-2 font-semibold">
                 <p>Supported formats: MP4, WebM, MOV, AVI</p>
                 <p>Maximum file size: {formatFileSize(maxFileSize)}</p>
               </div>
@@ -224,17 +223,17 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 sm:space-y-5 lg:space-y-6">
             {/* File Info */}
-            <div className="flex items-start gap-3 p-4 bg-notion-bg-secondary rounded-xl">
-              <div className="w-10 h-10 rounded-xl bg-notion-accent-blue flex items-center justify-center flex-shrink-0">
-                <Film className="w-5 h-5 text-white" />
+            <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 lg:p-6 bg-notion-bg-secondary rounded-xl">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-xl bg-notion-accent-blue flex items-center justify-center flex-shrink-0">
+                <Film className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-notion-text-primary truncate">
+                <p className="text-sm sm:text-base lg:text-lg font-bold text-notion-text-primary truncate">
                   {selectedFile.name}
                 </p>
-                <p className="text-xs text-notion-text-tertiary font-semibold">
+                <p className="text-xs sm:text-sm lg:text-base text-notion-text-tertiary font-semibold">
                   {formatFileSize(selectedFile.size)}
                 </p>
               </div>
@@ -248,14 +247,14 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
             {/* Progress Bar */}
             {uploadStatus === 'uploading' && uploadProgress && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
+              <div className="space-y-2 sm:space-y-2.5 lg:space-y-3">
+                <div className="flex items-center justify-between text-sm sm:text-base">
                   <span className="text-notion-text-secondary font-semibold">Uploading...</span>
                   <span className="text-notion-text-primary font-bold">
                     {uploadProgress.percentage.toFixed(0)}%
                   </span>
                 </div>
-                <div className="h-2 bg-notion-bg-tertiary rounded-full overflow-hidden">
+                <div className="h-2 sm:h-2.5 lg:h-3 bg-notion-bg-tertiary rounded-full overflow-hidden">
                   <div
                     className="h-full bg-notion-accent-blue transition-all duration-300"
                     style={{ width: `${uploadProgress.percentage}%` }}
@@ -266,31 +265,31 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
             {/* Success Message */}
             {uploadStatus === 'success' && (
-              <div className="flex items-center gap-2 text-sm text-notion-accent-green p-3 bg-notion-surface-green rounded-xl font-semibold">
-                <CheckCircle className="w-4 h-4" />
+              <div className="flex items-center gap-2 sm:gap-3 text-sm sm:text-base text-notion-accent-green p-3 sm:p-4 lg:p-5 bg-notion-surface-green rounded-xl font-semibold">
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                 <span>Video uploaded successfully!</span>
               </div>
             )}
 
             {/* Error Message */}
             {uploadStatus === 'error' && errorMessage && (
-              <div className="flex items-start gap-2 text-sm text-notion-accent-red p-3 bg-notion-surface-red rounded-xl font-semibold">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 sm:gap-3 text-sm sm:text-base text-notion-accent-red p-3 sm:p-4 lg:p-5 bg-notion-surface-red rounded-xl font-semibold">
+                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
             {/* Actions */}
             {uploadStatus === 'idle' && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <Button
                   variant="primary"
                   onClick={handleUpload}
-                  className="flex-1 font-bold"
+                  className="flex-1 font-bold text-sm sm:text-base lg:text-lg px-4 py-2 sm:px-6 sm:py-2.5 lg:px-8 lg:py-3"
                 >
                   Upload Video
                 </Button>
-                <Button variant="secondary" onClick={handleCancel} className="font-bold">
+                <Button variant="secondary" onClick={handleCancel} className="font-bold text-sm sm:text-base lg:text-lg px-4 py-2 sm:px-6 sm:py-2.5 lg:px-8 lg:py-3">
                   Cancel
                 </Button>
               </div>
