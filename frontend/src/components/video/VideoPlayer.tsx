@@ -245,7 +245,6 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           <video
             ref={ref}
             src={src}
-            key={src}
             onLoadedMetadata={(e) => {
               console.log('Video metadata loaded, duration:', (e.target as HTMLVideoElement).duration);
               setIsBuffering(false);

@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export interface VideoPlayerState {
   isPlaying: boolean;
@@ -10,7 +10,7 @@ export interface VideoPlayerState {
 }
 
 export const useVideoPlayer = () => {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const [state, setState] = useState<VideoPlayerState>({
     isPlaying: false,
     currentTime: 0,
@@ -20,19 +20,24 @@ export const useVideoPlayer = () => {
     playbackRate: 1,
   });
 
-  const play = useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.play();
-      setState((prev) => ({ ...prev, isPlaying: true }));
-    }
+  // Callback ref to track when video element is attached
+  const setVideoRef = useCallback((element: HTMLVideoElement | null) => {
+    setVideoElement(element);
   }, []);
 
+  const play = useCallback(() => {
+    if (videoElement) {
+      videoElement.play();
+      setState((prev) => ({ ...prev, isPlaying: true }));
+    }
+  }, [videoElement]);
+
   const pause = useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.pause();
+    if (videoElement) {
+      videoElement.pause();
       setState((prev) => ({ ...prev, isPlaying: false }));
     }
-  }, []);
+  }, [videoElement]);
 
   const togglePlayPause = useCallback(() => {
     if (state.isPlaying) {
@@ -43,49 +48,54 @@ export const useVideoPlayer = () => {
   }, [state.isPlaying, play, pause]);
 
   const seek = useCallback((time: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = time;
+    if (videoElement) {
+      videoElement.currentTime = time;
       setState((prev) => ({ ...prev, currentTime: time }));
     }
-  }, []);
+  }, [videoElement]);
 
   const setVolume = useCallback((volume: number) => {
-    if (videoRef.current) {
-      videoRef.current.volume = volume;
+    if (videoElement) {
+      videoElement.volume = volume;
       setState((prev) => ({ ...prev, volume }));
     }
-  }, []);
+  }, [videoElement]);
 
   const toggleMute = useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
+    if (videoElement) {
+      videoElement.muted = !videoElement.muted;
       setState((prev) => ({ ...prev, isMuted: !prev.isMuted }));
     }
-  }, []);
+  }, [videoElement]);
 
   const setPlaybackRate = useCallback((rate: number) => {
-    if (videoRef.current) {
-      videoRef.current.playbackRate = rate;
+    if (videoElement) {
+      videoElement.playbackRate = rate;
       setState((prev) => ({ ...prev, playbackRate: rate }));
     }
-  }, []);
+  }, [videoElement]);
 
+  // Attach event listeners when video element is available
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    if (!videoElement) {
+      console.log('useVideoPlayer: No video element yet');
+      return;
+    }
+
+    console.log('useVideoPlayer: Attaching event listeners to video element');
 
     const handleTimeUpdate = () => {
-      setState((prev) => ({ ...prev, currentTime: video.currentTime }));
+      setState((prev) => ({ ...prev, currentTime: videoElement.currentTime }));
     };
 
     const handleLoadedMetadata = () => {
-      console.log('useVideoPlayer: Metadata loaded, duration =', video.duration);
-      setState((prev) => ({ ...prev, duration: video.duration }));
+      console.log('useVideoPlayer: Metadata loaded, duration =', videoElement.duration);
+      setState((prev) => ({ ...prev, duration: videoElement.duration }));
     };
 
     const handleDurationChange = () => {
-      console.log('useVideoPlayer: Duration changed, duration =', video.duration);
-      setState((prev) => ({ ...prev, duration: video.duration }));
+      console.log('useVideoPlayer: Duration changed, duration =', videoElement.duration);
+      setState((prev) => ({ ...prev, duration: videoElement.duration }));
     };
 
     const handlePlay = () => {
@@ -99,36 +109,37 @@ export const useVideoPlayer = () => {
     const handleVolumeChange = () => {
       setState((prev) => ({
         ...prev,
-        volume: video.volume,
-        isMuted: video.muted,
+        volume: videoElement.volume,
+        isMuted: videoElement.muted,
       }));
     };
 
     // Check if video already has metadata loaded
-    if (video.duration && isFinite(video.duration) && video.duration > 0) {
-      console.log('useVideoPlayer: Video already has duration on mount:', video.duration);
-      setState((prev) => ({ ...prev, duration: video.duration }));
+    if (videoElement.duration && isFinite(videoElement.duration) && videoElement.duration > 0) {
+      console.log('useVideoPlayer: Video already has duration on mount:', videoElement.duration);
+      setState((prev) => ({ ...prev, duration: videoElement.duration }));
     }
 
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('durationchange', handleDurationChange);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('volumechange', handleVolumeChange);
+    videoElement.addEventListener('timeupdate', handleTimeUpdate);
+    videoElement.addEventListener('loadedmetadata', handleLoadedMetadata);
+    videoElement.addEventListener('durationchange', handleDurationChange);
+    videoElement.addEventListener('play', handlePlay);
+    videoElement.addEventListener('pause', handlePause);
+    videoElement.addEventListener('volumechange', handleVolumeChange);
 
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('durationchange', handleDurationChange);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('volumechange', handleVolumeChange);
+      console.log('useVideoPlayer: Removing event listeners');
+      videoElement.removeEventListener('timeupdate', handleTimeUpdate);
+      videoElement.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      videoElement.removeEventListener('durationchange', handleDurationChange);
+      videoElement.removeEventListener('play', handlePlay);
+      videoElement.removeEventListener('pause', handlePause);
+      videoElement.removeEventListener('volumechange', handleVolumeChange);
     };
-  }, []);
+  }, [videoElement]);
 
   return {
-    videoRef,
+    videoRef: setVideoRef,
     state,
     controls: {
       play,

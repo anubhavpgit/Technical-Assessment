@@ -515,6 +515,7 @@ export function connectToProgressStream(
   onError: (error: Error) => void
 ): EventSource {
   const eventSource = new EventSource(`${API_BASE_URL}/api/stream/progress/${jobId}`);
+  let hasReceivedTerminalStatus = false;
 
   eventSource.onmessage = (event) => {
     try {
@@ -523,7 +524,12 @@ export function connectToProgressStream(
       if (update.type === 'progress') {
         onProgress(update.data);
       } else if (update.type === 'status') {
-        onStatus(update.data.status, update.data.error);
+        const status = update.data.status;
+        // Track if we've received a terminal status
+        if (status === 'complete' || status === 'failed' || status === 'cancelled') {
+          hasReceivedTerminalStatus = true;
+        }
+        onStatus(status, update.data.error);
       }
     } catch (error) {
       console.error('Error parsing SSE message:', error);
@@ -531,8 +537,22 @@ export function connectToProgressStream(
   };
 
   eventSource.onerror = (error) => {
-    console.error('SSE connection error:', error);
-    onError(new Error('Unable to communicate with server. The connection was lost.'));
+    // If we've already received a terminal status (complete/failed/cancelled),
+    // this error is just the connection closing normally - ignore it
+    if (hasReceivedTerminalStatus) {
+      console.log('SSE connection closed after completion (expected)');
+      eventSource.close();
+      return;
+    }
+
+    // If EventSource is in CONNECTING state (readyState 0), it's still trying to connect
+    // If in OPEN state (readyState 1), it was open and now errored
+    // If in CLOSED state (readyState 2), it's already closed
+    if (eventSource.readyState === EventSource.CLOSED) {
+      console.error('SSE connection error: Connection lost unexpectedly');
+      onError(new Error('Unable to communicate with server. The connection was lost.'));
+    }
+
     eventSource.close();
   };
 
