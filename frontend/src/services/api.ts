@@ -538,3 +538,65 @@ export function connectToProgressStream(
 
   return eventSource;
 }
+
+/**
+ * Extract first keyframe and generate filter previews
+ */
+export async function extractFilterPreviews(
+  videoId: string,
+  confidenceThreshold: number = 0.5,
+  applyTo: 'background' | 'person' = 'background'
+): Promise<ApiResponse<{
+  video_id: string;
+  previews: Array<{
+    filter_id: string;
+    filter_name: string;
+    preview_url: string;
+    error?: string;
+  }>;
+  frame_size: {
+    width: number;
+    height: number;
+  };
+}>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/extract-filter-previews`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        video_id: videoId,
+        confidence_threshold: confidenceThreshold,
+        apply_to: applyTo,
+      }),
+    });
+
+    if (!response.ok) {
+      let errorMessage = getErrorMessage(new Error(), response.status);
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // Use status-based message if response is not JSON
+      }
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: getErrorMessage(error),
+    };
+  }
+}

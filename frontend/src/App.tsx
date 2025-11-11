@@ -1,19 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
 import { VideoPlayer } from './components/video/VideoPlayer';
 import { VideoUpload } from './components/upload/VideoUpload';
-import { FilterGallery } from './components/filters/FilterGallery';
 import { VideoTimeline } from './components/filters/VideoTimeline';
 import { Button } from './components/common/Button';
 import { Card } from './components/common/Card';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
-import { Video, ViewMode, Filter, TimelineItem } from './types';
+import { Video, ViewMode, TimelineItem } from './types';
 import { generateId } from './utils/formatters';
 import { FILTERS } from './constants/filters';
 import { videoUrl } from './consts';
-import { uploadVideo, startProcessingJob, connectToProgressStream, getJobStatus } from './services/api';
+import { uploadVideo, startProcessingJob, connectToProgressStream, getJobStatus, extractFilterPreviews } from './services/api';
 
 function App() {
   // Video state
@@ -40,12 +39,19 @@ function App() {
   const [previewTimestamp, setPreviewTimestamp] = useState<number>(Date.now());
 
   // Filter state
-  const [selectedFilter, setSelectedFilter] = useState<Filter | null>(null);
+  const [selectedFilterType, setSelectedFilterType] = useState<'grayscale' | 'blur' | 'sepia'>('grayscale');
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>(() => {
     const savedTimeline = localStorage.getItem('overlap-timeline-items');
     return savedTimeline ? JSON.parse(savedTimeline) : [];
   });
   const [appliedFilters, setAppliedFilters] = useState<string[]>([]);
+  const [filterPreviews, setFilterPreviews] = useState<Array<{
+    filter_id: string;
+    filter_name: string;
+    preview_url: string;
+    error?: string;
+  }>>([]);
+  const [isLoadingPreviews, setIsLoadingPreviews] = useState(false);
 
   // UI state
 
@@ -101,8 +107,25 @@ function App() {
     setAppliedFilters(currentFilters);
   }, [playerState.currentTime, timelineItems]);
 
-  const handleVideoUpload = (video: Video) => {
+  const handleVideoUpload = async (video: Video) => {
     setCurrentVideo(video);
+
+    // Automatically extract filter previews after upload
+    if (video.video_id) {
+      setIsLoadingPreviews(true);
+      try {
+        const response = await extractFilterPreviews(video.video_id, 0.5, 'background');
+        if (response.success && response.data) {
+          setFilterPreviews(response.data.previews);
+          // Automatically select the first filter (grayscale)
+          setSelectedFilterType('grayscale');
+        }
+      } catch (error) {
+        console.error('Error extracting filter previews:', error);
+      } finally {
+        setIsLoadingPreviews(false);
+      }
+    }
   };
 
   const handleUseDefaultVideo = async () => {
@@ -136,6 +159,22 @@ function App() {
         };
         setCurrentVideo(defaultVideo);
         setIsUploadingSample(false);
+
+        // Extract filter previews for the default video
+        if (uploadResponse.data.video_id) {
+          setIsLoadingPreviews(true);
+          try {
+            const previewResponse = await extractFilterPreviews(uploadResponse.data.video_id, 0.5, 'background');
+            if (previewResponse.success && previewResponse.data) {
+              setFilterPreviews(previewResponse.data.previews);
+              setSelectedFilterType('grayscale');
+            }
+          } catch (error) {
+            console.error('Error extracting filter previews:', error);
+          } finally {
+            setIsLoadingPreviews(false);
+          }
+        }
       } else {
         setIsUploadingSample(false);
       }
@@ -166,10 +205,10 @@ function App() {
     setProgressData(null);
 
     try {
-      // Start the processing job
+      // Start the processing job with the selected filter type
       const response = await startProcessingJob(
         currentVideo.video_id,
-        'grayscale',
+        selectedFilterType, // Use the selected filter from previews
         'background',
         'keep_original',
         0.5,
@@ -262,29 +301,6 @@ function App() {
       setProcessingStatus('error');
       setProcessingError(error instanceof Error ? error.message : 'Processing failed');
     }
-  };
-
-  const handleFilterSelect = (filter: Filter) => {
-    setSelectedFilter(filter);
-  };
-
-  const handleAddFilterToTimeline = () => {
-    if (!selectedFilter || !currentVideo) return;
-
-    const startTime = playerState.currentTime;
-    const endTime = Math.min(startTime + 5, playerState.duration);
-
-    const newItem: TimelineItem = {
-      id: generateId(),
-      filterId: selectedFilter.id,
-      filterName: selectedFilter.name,
-      startTime,
-      endTime,
-      layer: timelineItems.length,
-      color: selectedFilter.category,
-    };
-
-    setTimelineItems([...timelineItems, newItem]);
   };
 
   const handleRemoveFilterFromTimeline = (id: string) => {
@@ -390,6 +406,8 @@ function App() {
                           setProcessingStatus('idle');
                           setProcessingError('');
                           setTimelineItems([]);
+                          setFilterPreviews([]);
+                          setSelectedFilterType('grayscale');
                           localStorage.removeItem('overlap-current-video');
                           localStorage.removeItem('overlap-timeline-items');
                         }}
@@ -415,8 +433,84 @@ function App() {
                     currentVideo={currentVideo}
                   />
 
-                  {/* Process Button - Show when video is selected but not yet processed */}
-                  {currentVideo && processingStatus !== 'success' && (
+                  {/* Filter Previews - Show after video upload and persist after processing */}
+                  {currentVideo && filterPreviews.length > 0 && (
+                    <div className="mt-6">
+                      <Card className="rounded-lg">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-base font-bold text-notion-text-primary">Select a Filter Style</h3>
+                              <p className="text-sm text-notion-text-secondary">
+                                {processingStatus === 'success'
+                                  ? 'Change the filter and reprocess to update your video'
+                                  : 'Choose how you want to process your video'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {isLoadingPreviews ? (
+                            <div className="flex items-center justify-center py-8">
+                              <Loader2 className="w-8 h-8 animate-spin text-[#ff3c00]" />
+                              <p className="ml-3 text-sm text-notion-text-secondary">Generating filter previews...</p>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                              {filterPreviews.map((preview) => (
+                                <button
+                                  key={preview.filter_id}
+                                  onClick={() => setSelectedFilterType(preview.filter_id as 'grayscale' | 'blur' | 'sepia')}
+                                  disabled={processingStatus === 'processing'}
+                                  className={`relative group overflow-hidden rounded-lg transition-all duration-200 ${
+                                    selectedFilterType === preview.filter_id
+                                      ? 'ring-2 ring-[#ff3c00] shadow-lg'
+                                      : 'ring-1 ring-notion-border hover:ring-notion-accent-blue'
+                                  } ${processingStatus === 'processing' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  <div className="aspect-video bg-black">
+                                    {preview.error ? (
+                                      <div className="flex items-center justify-center h-full text-sm text-notion-accent-red">
+                                        Error loading preview
+                                      </div>
+                                    ) : (
+                                      <img
+                                        src={`http://127.0.0.1:8080${preview.preview_url}`}
+                                        alt={preview.filter_name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="p-3 bg-white/95 backdrop-blur-sm">
+                                    <p className="text-sm font-semibold text-notion-text-primary text-center">
+                                      {preview.filter_name}
+                                    </p>
+                                  </div>
+                                  {selectedFilterType === preview.filter_id && (
+                                    <div className="absolute top-2 right-2 w-6 h-6 bg-[#ff3c00] rounded-full flex items-center justify-center">
+                                      <svg
+                                        className="w-4 h-4 text-white"
+                                        fill="none"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+
+                  {/* Process/Reprocess Button - Always show when video is uploaded */}
+                  {currentVideo && (
                     <div className="flex flex-col items-center gap-4 mt-6">
                       <Button
                         variant="primary"
@@ -434,6 +528,8 @@ function App() {
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Processing Video...
                           </>
+                        ) : processingStatus === 'success' ? (
+                          `Reprocess with ${selectedFilterType.charAt(0).toUpperCase() + selectedFilterType.slice(1)}`
                         ) : (
                           'Process Video'
                         )}
@@ -542,32 +638,6 @@ function App() {
                           isPlaying={playerState.isPlaying}
                           onPlayPause={controls.togglePlayPause}
                         />
-                      </div>
-                    </Card>
-
-                    {/* Filters Row */}
-                    <Card className="rounded-lg">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-base font-bold text-notion-text-primary flex items-center gap-2">
-                            <Sparkles className="w-5 h-5" />
-                            Filters
-                          </h3>
-                        </div>
-                        <FilterGallery
-                          onFilterSelect={handleFilterSelect}
-                          selectedFilterId={selectedFilter?.id}
-                        />
-                        {selectedFilter && (
-                          <Button
-                            variant="primary"
-                            onClick={handleAddFilterToTimeline}
-                            className="w-full"
-                            disabled={!processedVideo}
-                          >
-                            Add to Timeline at {Math.floor(playerState.currentTime)}s
-                          </Button>
-                        )}
                       </div>
                     </Card>
                   </div>
