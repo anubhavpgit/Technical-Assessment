@@ -9,3 +9,8 @@ torch>=2.0.0
 torchvision>=0.15.0
 numpy==1.26.4
 pillow==10.4.0
+
+# SAM for pixel-perfect segmentation
+# Note: SAM2 must be installed via git: pip install git+https://github.com/facebookresearch/segment-anything-2.git
+# For now, using original SAM which is pip-installable and still excellent
+segment-anything>=1.0

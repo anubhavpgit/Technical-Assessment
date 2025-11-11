@@ -21,5 +21,10 @@ ENV/
 yolo*.pt
 *.pt
 
+# SAM models (very heavy - 358MB+)
+models/*.pth
+models/*.pt
+!models/README.md
+
 # Logs
 *.log

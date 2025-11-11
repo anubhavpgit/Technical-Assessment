@@ -31,13 +31,16 @@ PROCESSED_FOLDER.mkdir(exist_ok=True)
 video_processor = None
 
 
-def get_processor():
+def get_processor(use_sam=False):
     """Get or initialize the video processor"""
     global video_processor
-    if video_processor is None:
+    if video_processor is None or (hasattr(video_processor, 'use_sam') and video_processor.use_sam != use_sam):
         logger.info("Initializing video processor...")
-        video_processor = get_video_processor('yolo11n-seg.pt')
-        logger.info("Video processor initialized successfully")
+        video_processor = get_video_processor('yolo11n-seg.pt', use_sam=use_sam)
+        if use_sam:
+            logger.info("Video processor initialized with SAM refinement")
+        else:
+            logger.info("Video processor initialized (YOLO-only mode)")
     return video_processor
 
 
@@ -154,6 +157,7 @@ def process_video():
         region_aware: bool - Only process column/region where person appears (default: True)
         roi_expansion: float - Region expansion factor 0.0-1.0 (default: 0.3)
         boundary_refinement: str - Refinement level: minimal, balanced, aggressive (default: balanced)
+        use_sam: bool - Enable SAM for pixel-perfect boundary refinement (default: False)
 
     Returns:
         JSON with processing statistics and processed video path
@@ -173,6 +177,7 @@ def process_video():
         region_aware = data.get('region_aware', True)
         roi_expansion = data.get('roi_expansion', 0.3)
         boundary_refinement = data.get('boundary_refinement', 'balanced')
+        use_sam = data.get('use_sam', False)
 
         # Validate input video exists
         input_path = UPLOAD_FOLDER / video_id
@@ -186,10 +191,10 @@ def process_video():
         logger.info(f"Starting video processing: {video_id}")
         logger.info(f"Settings - Filter: {filter_type}, Apply to: {apply_to}, "
                    f"Confidence: {confidence_threshold}, Region-aware: {region_aware}, "
-                   f"Boundary refinement: {boundary_refinement}")
+                   f"Boundary refinement: {boundary_refinement}, SAM: {use_sam}")
 
-        # Get processor and process video
-        processor = get_processor()
+        # Get processor with SAM if requested
+        processor = get_processor(use_sam=use_sam)
         stats = processor.process_video_selective_filter(
             input_video_path=str(input_path),
             output_video_path=str(output_path),

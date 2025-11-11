@@ -229,6 +229,7 @@ export async function processVideoWithAI(
         apply_to: applyTo,
         no_person_behavior: noPersonBehavior,
         confidence_threshold: confidenceThreshold,
+        use_sam: true,
       }),
     });
 

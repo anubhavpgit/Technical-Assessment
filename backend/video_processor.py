@@ -1,6 +1,7 @@
 """
-Video Processing Module with YOLOv11 Person Segmentation
+Video Processing Module with YOLOv11 Person Segmentation + SAM Refinement
 Handles person detection, background segmentation, and selective filtering
+with optional SAM for pixel-perfect boundary refinement
 """
 
 import cv2
@@ -14,6 +15,14 @@ import subprocess
 import shutil
 
 logger = logging.getLogger(__name__)
+
+# SAM imports - optional, will gracefully degrade if not available
+try:
+    from segment_anything import sam_model_registry, SamPredictor
+    SAM_AVAILABLE = True
+except ImportError:
+    SAM_AVAILABLE = False
+    logger.warning("segment-anything not installed. SAM refinement will be disabled.")
 
 
 class LayoutTracker:
@@ -181,16 +190,20 @@ class LayoutTracker:
 
 class VideoProcessor:
     """
-    Video processor using YOLOv11-seg for person detection and background segmentation
+    Video processor using YOLOv11-seg for person detection and optional SAM for refinement
     """
 
-    def __init__(self, model_path='yolo11n-seg.pt'):
+    def __init__(self, model_path='yolo11n-seg.pt', use_sam=False, sam_model_type='vit_b', sam_checkpoint=None):
         """
-        Initialize the video processor with YOLOv11 segmentation model
+        Initialize the video processor with YOLOv11 segmentation model and optional SAM
 
         Args:
             model_path: Path to YOLOv11 segmentation model weights
+            use_sam: Enable SAM refinement for pixel-perfect boundaries
+            sam_model_type: SAM model type ('vit_b', 'vit_l', 'vit_h')
+            sam_checkpoint: Path to SAM checkpoint file (auto-detects if None)
         """
+        # Load YOLO
         try:
             logger.info(f"Loading YOLOv11 model: {model_path}")
             self.model = YOLO(model_path)
@@ -198,6 +211,36 @@ class VideoProcessor:
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
+
+        # Optionally load SAM
+        self.use_sam = use_sam and SAM_AVAILABLE
+        self.sam_predictor = None
+
+        if use_sam:
+            if not SAM_AVAILABLE:
+                logger.warning("SAM requested but not available. Install with: pip install segment-anything")
+                self.use_sam = False
+            else:
+                try:
+                    # Auto-detect SAM checkpoint if not provided
+                    if sam_checkpoint is None:
+                        models_dir = Path(__file__).parent / 'models'
+                        sam_checkpoint = models_dir / f'sam_{sam_model_type}_01ec64.pth'
+
+                    if not os.path.exists(sam_checkpoint):
+                        logger.warning(f"SAM checkpoint not found: {sam_checkpoint}")
+                        logger.warning("Download from: https://github.com/facebookresearch/segment-anything#model-checkpoints")
+                        self.use_sam = False
+                    else:
+                        logger.info(f"Loading SAM model: {sam_model_type}")
+                        sam = sam_model_registry[sam_model_type](checkpoint=str(sam_checkpoint))
+                        sam.to(device=self._get_device())
+                        self.sam_predictor = SamPredictor(sam)
+                        logger.info("SAM model loaded successfully - pixel-perfect refinement enabled")
+                except Exception as e:
+                    logger.error(f"Failed to load SAM: {e}")
+                    logger.warning("Falling back to YOLO-only mode")
+                    self.use_sam = False
 
         self._prev_mask = None
         self._prev_gray = None
@@ -518,6 +561,71 @@ class VideoProcessor:
         logger.debug(f"Person occupies {area_ratio*100:.1f}% of frame - region: [{region_x1}:{region_x2}, {region_y1}:{region_y2}]")
         return region_mask
 
+    def _refine_mask_with_sam(self, frame, yolo_mask):
+        """
+        Use SAM to refine YOLO's mask into pixel-perfect boundaries.
+        SAM excels at capturing fine details like arms on tables.
+
+        Args:
+            frame: Input frame (BGR format)
+            yolo_mask: Rough mask from YOLO (H, W) float32
+
+        Returns:
+            Refined mask with pixel-perfect boundaries (H, W) float32
+        """
+        if not self.use_sam or self.sam_predictor is None:
+            return yolo_mask
+
+        try:
+            # Convert BGR to RGB for SAM
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            # Set image for SAM
+            self.sam_predictor.set_image(frame_rgb)
+
+            # Get bounding box from YOLO mask
+            mask_binary = (yolo_mask > 0.5).astype(np.uint8)
+            contours, _ = cv2.findContours(mask_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            if len(contours) == 0:
+                return yolo_mask
+
+            # Get bounding box from largest contour
+            contour = max(contours, key=cv2.contourArea)
+            x, y, w, h = cv2.boundingRect(contour)
+
+            # Expand box slightly for better SAM performance
+            expand = 10
+            x1 = max(0, x - expand)
+            y1 = max(0, y - expand)
+            x2 = min(frame.shape[1], x + w + expand)
+            y2 = min(frame.shape[0], y + h + expand)
+
+            box = np.array([x1, y1, x2, y2])
+
+            # Use YOLO mask as additional hint (downsampled to 256x256 for SAM)
+            mask_hint = cv2.resize(yolo_mask, (256, 256))
+
+            # Run SAM prediction with both box and mask hints
+            refined_masks, scores, _ = self.sam_predictor.predict(
+                box=box,
+                mask_input=mask_hint[None, :, :],
+                multimask_output=False  # Single best mask
+            )
+
+            # Resize refined mask back to frame size
+            refined_mask = cv2.resize(
+                refined_masks[0].astype(np.float32),
+                (frame.shape[1], frame.shape[0])
+            )
+
+            logger.debug(f"SAM refinement applied - quality score: {scores[0]:.3f}")
+            return refined_mask
+
+        except Exception as e:
+            logger.warning(f"SAM refinement failed: {e}. Using YOLO mask.")
+            return yolo_mask
+
     def _apply_selective_filter(self, frame, masks, filter_type, apply_to,
                                region_aware=True, roi_expansion=0.3,
                                layout_tracker=None, boundary_refinement='balanced'):
@@ -550,59 +658,55 @@ class VideoProcessor:
             mask_resized = cv2.resize(mask, (frame.shape[1], frame.shape[0]))
             combined_mask = np.maximum(combined_mask, mask_resized)
 
-        # CONFIGURABLE REFINEMENT: Apply boundary refinement based on selected level
-        mask_binary = (combined_mask > 0.5).astype(np.uint8)
-
-        if boundary_refinement == 'minimal':
-            # MINIMAL: Use raw YOLO mask with only slight smoothing (most precise)
-            # Best for pixel-perfect boundaries when YOLO detection is already good
-            combined_mask = cv2.GaussianBlur(combined_mask, (3, 3), 0)
-
-        elif boundary_refinement == 'aggressive':
-            # AGGRESSIVE: Strong refinement to fill gaps and extend boundaries
-            # Best when YOLO misses significant body parts
-            min_dim = min(frame.shape[:2])
-            kernel_size = max(9, int(min_dim * 0.03))
-            if kernel_size % 2 == 0:
-                kernel_size += 1
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
-            mask_refined = cv2.morphologyEx(mask_binary, cv2.MORPH_CLOSE, kernel)
-
-            # Apply aggressive geometric enhancement
-            mask_refined = self._enhance_person_mask_geometry_aggressive(mask_refined, frame.shape)
-
-            # Edge-aware refinement
-            combined_mask = self._refine_mask_with_grabcut(frame, mask_refined.astype(np.float32))
-
-            # Temporal smoothing
+        # HYBRID YOLO+SAM: If SAM is enabled, use it for pixel-perfect refinement
+        if self.use_sam and self.sam_predictor is not None:
+            logger.debug("Using SAM for pixel-perfect boundary refinement")
+            combined_mask = self._refine_mask_with_sam(frame, combined_mask)
+            # SAM output is already pixel-perfect, just apply slight temporal smoothing
             combined_mask = self._temporal_smooth_mask(combined_mask, frame)
+        else:
+            # CONFIGURABLE REFINEMENT: Apply boundary refinement based on selected level
+            mask_binary = (combined_mask > 0.5).astype(np.uint8)
 
-            # Blur for smooth transitions
-            combined_mask = cv2.GaussianBlur(combined_mask, (7, 7), 0)
+            if boundary_refinement == 'minimal':
+                # MINIMAL: Use RAW YOLO mask with NO additional processing
+                # This is the cleanest, most precise detection directly from YOLOv11
+                # Best when original YOLO detection is good (which it usually is)
+                # Just use the combined_mask as-is, no modifications
+                pass  # No processing - use raw YOLO mask
 
-        else:  # 'balanced' (default)
-            # BALANCED: Moderate refinement to fill small gaps while preserving boundaries
-            # Uses TUNED parameters for natural-looking boundaries
-            min_dim = min(frame.shape[:2])
-            kernel_size = max(5, int(min_dim * 0.015))
-            if kernel_size % 2 == 0:
-                kernel_size += 1
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+            elif boundary_refinement == 'aggressive':
+                # AGGRESSIVE: Strong refinement to fill gaps and extend boundaries
+                # Best when YOLO misses significant body parts
+                min_dim = min(frame.shape[:2])
+                kernel_size = max(9, int(min_dim * 0.03))
+                if kernel_size % 2 == 0:
+                    kernel_size += 1
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+                mask_refined = cv2.morphologyEx(mask_binary, cv2.MORPH_CLOSE, kernel)
 
-            # Gentle closing operation
-            mask_refined = cv2.morphologyEx(mask_binary, cv2.MORPH_CLOSE, kernel)
+                # Apply aggressive geometric enhancement
+                mask_refined = self._enhance_person_mask_geometry_aggressive(mask_refined, frame.shape)
 
-            # Gentle geometric enhancement (without convex hull)
-            mask_refined = self._enhance_person_mask_geometry(mask_refined, frame.shape)
+                # Edge-aware refinement
+                combined_mask = self._refine_mask_with_grabcut(frame, mask_refined.astype(np.float32))
 
-            # Edge-aware refinement with conservative parameters
-            combined_mask = self._refine_mask_with_grabcut(frame, mask_refined.astype(np.float32))
+                # Temporal smoothing
+                combined_mask = self._temporal_smooth_mask(combined_mask, frame)
 
-            # Temporal smoothing
-            combined_mask = self._temporal_smooth_mask(combined_mask, frame)
+                # Blur for smooth transitions
+                combined_mask = cv2.GaussianBlur(combined_mask, (7, 7), 0)
 
-            # Slight blur for smooth edges
-            combined_mask = cv2.GaussianBlur(combined_mask, (5, 5), 0)
+            else:  # 'balanced' (default)
+                # BALANCED: Very light refinement - just temporal smoothing and slight blur
+                # Keeps YOLO's original boundaries but smooths transitions between frames
+                # This is much closer to raw YOLO output
+
+                # Only apply temporal smoothing to reduce flickering between frames
+                combined_mask = self._temporal_smooth_mask(combined_mask, frame)
+
+                # Very slight blur to soften hard edges (3x3 instead of 5x5)
+                combined_mask = cv2.GaussianBlur(combined_mask, (3, 3), 0)
 
         # Calculate region mask if region-aware mode is enabled
         region_mask = None
@@ -1149,17 +1253,24 @@ class VideoProcessor:
 _processor_instance = None
 
 
-def get_video_processor(model_path='yolo11n-seg.pt'):
+def get_video_processor(model_path='yolo11n-seg.pt', use_sam=False, sam_model_type='vit_b'):
     """
     Get or create a singleton video processor instance
 
     Args:
         model_path: Path to YOLOv11 model weights
+        use_sam: Enable SAM refinement for pixel-perfect boundaries
+        sam_model_type: SAM model type ('vit_b', 'vit_l', 'vit_h')
 
     Returns:
         VideoProcessor: Singleton processor instance
     """
     global _processor_instance
-    if _processor_instance is None:
-        _processor_instance = VideoProcessor(model_path)
+    # Recreate instance if SAM settings changed
+    if _processor_instance is None or (_processor_instance.use_sam != use_sam):
+        _processor_instance = VideoProcessor(
+            model_path=model_path,
+            use_sam=use_sam,
+            sam_model_type=sam_model_type
+        )
     return _processor_instance
