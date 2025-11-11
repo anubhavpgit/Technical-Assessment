@@ -374,14 +374,14 @@ function App() {
           {/* Content Container */}
           <div className="relative z-10 flex flex-col min-h-[calc(100vh-3rem)]">
             {/* Floating Header */}
-            <header className="mx-auto mt-4 sm:mt-6 bg-white/95 backdrop-blur-sm rounded-xl border border-notion-border shadow-notion-md w-full max-w-4xl">
-              <div className="px-4 sm:px-6 lg:px-8 py-4">
+            <header className="mx-auto mt-4 sm:mt-6 bg-white/95 backdrop-blur-sm rounded-xl border border-notion-border shadow-notion-md w-full max-w-6xl">
+              <div className="px-4 sm:px-6 lg:px-8 py-5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 120 31"
-                      className="h-8"
+                      className="h-10"
                       aria-label="Overlap Logo"
                     >
                       <g transform="translate(0.269 0.025)">
@@ -392,7 +392,7 @@ function App() {
                       </g>
                     </svg>
                     <div className="hidden sm:block">
-                      <p className="text-xs text-notion-text-primary font-semibold">
+                      <p className="text-sm text-notion-text-primary font-semibold">
                         AI that clips, edits, and posts.
                       </p>
                     </div>
