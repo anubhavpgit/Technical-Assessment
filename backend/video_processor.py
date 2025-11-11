@@ -10,6 +10,8 @@ import logging
 import os
 from pathlib import Path
 import time
+import subprocess
+import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +86,16 @@ class VideoProcessor:
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
 
-        # Video writer
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        # Video writer - Use H.264 codec for browser compatibility
+        # Try avc1 first (H.264), fallback to mp4v if not available
+        fourcc = cv2.VideoWriter_fourcc(*'avc1')
         out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+
+        # If avc1 fails, try H264
+        if not out.isOpened():
+            logger.warning("avc1 codec not available, trying H264")
+            fourcc = cv2.VideoWriter_fourcc(*'H264')
+            out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
         if not out.isOpened():
             raise ValueError(f"Could not create output video: {output_video_path}")
@@ -196,6 +205,12 @@ class VideoProcessor:
                    f"({avg_fps:.2f} FPS, {avg_inference_time:.2f}ms/frame)")
         logger.info(f"Person detected in {frames_with_person}/{frame_count} frames "
                    f"({detection_rate:.1f}%)")
+
+        # Re-encode with ffmpeg for better browser compatibility
+        try:
+            self._reencode_with_ffmpeg(output_video_path)
+        except Exception as e:
+            logger.warning(f"FFmpeg re-encoding failed, video may have compatibility issues: {e}")
 
         return stats
 
@@ -350,6 +365,65 @@ class VideoProcessor:
             return "Apple Silicon GPU (Metal)"
         else:
             return "CPU"
+
+    def _reencode_with_ffmpeg(self, video_path):
+        """
+        Re-encode video with ffmpeg to ensure browser compatibility
+        Uses H.264 codec with web-optimized settings
+
+        Args:
+            video_path: Path to video file to re-encode
+        """
+        # Check if ffmpeg is available
+        if not shutil.which('ffmpeg'):
+            logger.warning("ffmpeg not found in PATH, skipping re-encoding")
+            return
+
+        logger.info(f"Re-encoding video with ffmpeg for browser compatibility: {video_path}")
+
+        # Create temporary output path
+        temp_path = video_path.replace('.mp4', '_temp.mp4')
+
+        try:
+            # FFmpeg command for browser-compatible H.264 encoding
+            cmd = [
+                'ffmpeg',
+                '-i', video_path,
+                '-c:v', 'libx264',           # H.264 video codec
+                '-preset', 'medium',          # Encoding speed/quality tradeoff
+                '-crf', '23',                 # Quality (lower = better, 18-28 is good range)
+                '-pix_fmt', 'yuv420p',        # Pixel format for compatibility
+                '-movflags', '+faststart',    # Enable streaming (moov atom at start)
+                '-y',                         # Overwrite output file
+                temp_path
+            ]
+
+            # Run ffmpeg
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=300  # 5 minute timeout
+            )
+
+            if result.returncode == 0:
+                # Replace original with re-encoded version
+                shutil.move(temp_path, video_path)
+                logger.info("Video successfully re-encoded with ffmpeg")
+            else:
+                logger.error(f"FFmpeg re-encoding failed: {result.stderr.decode()}")
+                # Clean up temp file if it exists
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+
+        except subprocess.TimeoutExpired:
+            logger.error("FFmpeg re-encoding timed out")
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        except Exception as e:
+            logger.error(f"FFmpeg re-encoding error: {e}")
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
 
 
 # Singleton instance
