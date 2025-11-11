@@ -1,0 +1,25 @@
+# Video Processing Folders
+uploads/
+processed/
+*.mp4
+*.mov
+*.avi
+*.webm
+*.mkv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# YOLO models (auto-downloaded)
+yolo*.pt
+*.pt
+
+# Logs
+*.log
