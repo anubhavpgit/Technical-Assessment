@@ -37,6 +37,7 @@ function App() {
   } | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const [previewTimestamp, setPreviewTimestamp] = useState<number>(Date.now());
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   // Filter state
   const [selectedFilterType, setSelectedFilterType] = useState<'grayscale' | 'blur' | 'sepia'>('grayscale');
@@ -193,6 +194,7 @@ function App() {
     };
   }, []);
 
+
   const handleProcessVideo = async () => {
     if (!currentVideo?.video_id) {
       setProcessingError('No video ID available for processing');
@@ -230,11 +232,13 @@ function App() {
         (data) => {
           setProgressData(data);
           if (data.preview_url) {
+            setIsPreviewLoading(true);
             setPreviewTimestamp(Date.now());
           }
         },
         // onStatus
         async (status, error) => {
+          console.log('Received status update:', status, error);
           if (status === 'complete') {
             // Get final job status to retrieve the processed video URL
             const jobStatus = await getJobStatus(jobId);
@@ -530,64 +534,82 @@ function App() {
                       </Button>
 
                       {/* Live Preview and Progress */}
-                      {processingStatus === 'processing' && progressData && (
+                      {processingStatus === 'processing' && (
                         <div className="w-full space-y-4">
                           {/* Live Preview Frame */}
                           <Card className="w-full rounded-lg overflow-hidden">
                             <div className="space-y-2">
-                              <h3 className="text-sm font-bold text-notion-text-primary">Live Preview</h3>
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-bold text-notion-text-primary">Live Processing Preview</h3>
+                                <div className="flex items-center gap-2 bg-[#ff3c00] text-white px-3 py-1.5 rounded-full text-xs font-semibold">
+                                  <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                                  <span>PROCESSING</span>
+                                </div>
+                              </div>
                               <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
-                                {progressData.preview_url ? (
-                                  <img
-                                    src={`http://127.0.0.1:8080${progressData.preview_url}?t=${previewTimestamp}`}
-                                    alt="Processing preview"
-                                    className="w-full h-full object-contain"
-                                  />
+                                {progressData?.preview_url ? (
+                                  <>
+                                    <img
+                                      src={`http://127.0.0.1:8080${progressData.preview_url}?t=${previewTimestamp}`}
+                                      alt="Processing preview"
+                                      className="w-full h-full object-contain"
+                                      onLoad={() => setIsPreviewLoading(false)}
+                                      onError={() => setIsPreviewLoading(false)}
+                                    />
+                                    {/* Loading overlay on preview updates */}
+                                    {isPreviewLoading && (
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                        <Loader2 className="w-12 h-12 text-[#ff3c00] animate-spin" />
+                                      </div>
+                                    )}
+                                  </>
                                 ) : (
-                                  /* Buffering Loader */
+                                  /* Initial Loading State */
                                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <Loader2 className="w-12 h-12 text-[#ff3c00] animate-spin mb-4" />
-                                    <p className="text-sm text-white font-semibold">Processing frames...</p>
-                                    <p className="text-xs text-gray-400 mt-1">Preview will appear shortly</p>
+                                    <Loader2 className="w-16 h-16 text-[#ff3c00] animate-spin mb-4" />
+                                    <p className="text-lg text-white font-semibold">Starting video processing...</p>
+                                    <p className="text-sm text-gray-400 mt-2">Preview will appear shortly</p>
                                   </div>
                                 )}
                               </div>
                             </div>
                           </Card>
 
-                          {/* Progress Bar */}
-                          <Card className="w-full rounded-lg">
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-notion-text-secondary font-semibold">
-                                  Processing... Frame {progressData.current} / {progressData.total}
-                                </span>
-                                <span className="text-notion-text-primary font-bold">
-                                  {progressData.percentage.toFixed(1)}%
-                                </span>
-                              </div>
+                          {/* Progress Bar - Only show when we have progress data */}
+                          {progressData && (
+                            <Card className="w-full rounded-lg">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-notion-text-secondary font-semibold">
+                                    Processing... Frame {progressData.current} / {progressData.total}
+                                  </span>
+                                  <span className="text-notion-text-primary font-bold">
+                                    {progressData.percentage.toFixed(1)}%
+                                  </span>
+                                </div>
 
-                              {/* Progress bar */}
-                              <div className="h-3 bg-notion-bg-tertiary rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-[#ff3c00] transition-all duration-300 ease-out"
-                                  style={{ width: `${progressData.percentage}%` }}
-                                />
-                              </div>
+                                {/* Progress bar */}
+                                <div className="h-3 bg-notion-bg-tertiary rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-[#ff3c00] transition-all duration-300 ease-out"
+                                    style={{ width: `${progressData.percentage}%` }}
+                                  />
+                                </div>
 
-                              {/* Stats */}
-                              <div className="flex items-center justify-between text-xs text-notion-text-tertiary">
-                                <span className="font-semibold">
-                                  {progressData.fps > 0 ? `${progressData.fps.toFixed(1)} FPS` : 'Calculating...'}
-                                </span>
-                                <span className="font-semibold">
-                                  {progressData.eta_seconds > 0
-                                    ? `ETA: ${Math.floor(progressData.eta_seconds / 60)}:${String(Math.floor(progressData.eta_seconds % 60)).padStart(2, '0')}`
-                                    : 'Calculating ETA...'}
-                                </span>
+                                {/* Stats */}
+                                <div className="flex items-center justify-between text-xs text-notion-text-tertiary">
+                                  <span className="font-semibold">
+                                    {progressData.fps > 0 ? `${progressData.fps.toFixed(1)} FPS` : 'Calculating...'}
+                                  </span>
+                                  <span className="font-semibold">
+                                    {progressData.eta_seconds > 0
+                                      ? `ETA: ${Math.floor(progressData.eta_seconds / 60)}:${String(Math.floor(progressData.eta_seconds % 60)).padStart(2, '0')}`
+                                      : 'Calculating ETA...'}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          </Card>
+                            </Card>
+                          )}
                         </div>
                       )}
 

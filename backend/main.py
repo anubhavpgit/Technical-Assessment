@@ -80,6 +80,7 @@ def allowed_file(filename):
 def create_job(video_id, params):
     """Create a new processing job"""
     job_id = str(uuid.uuid4())
+    output_filename = f"processed_{job_id}.mp4"
     with jobs_lock:
         jobs[job_id] = {
             'id': job_id,
@@ -94,7 +95,7 @@ def create_job(video_id, params):
                 'eta_seconds': 0
             },
             'segments': [],
-            'output_video_id': None,
+            'output_video_id': output_filename,  # Set output filename immediately
             'error': None,
             'created_at': datetime.now().isoformat(),
             'started_at': None,
@@ -198,8 +199,8 @@ def process_video_background(job_id):
             update_job_status(job_id, 'failed', f"Video not found: {video_id}")
             return
 
-        # Generate output filename
-        output_filename = f"processed_{uuid.uuid4()}.mp4"
+        # Use output filename from job (already set in create_job)
+        output_filename = job['output_video_id']
         output_path = PROCESSED_FOLDER / output_filename
 
         logger.info(f"Starting background processing for job {job_id}")
@@ -318,8 +319,21 @@ def process_video_background(job_id):
 
             # Update job with completion info
             with jobs_lock:
-                jobs[job_id]['output_video_id'] = output_filename
                 jobs[job_id]['stats'] = stats
+
+            # Push stream_url update via SSE
+            with jobs_lock:
+                if job_id in jobs:
+                    try:
+                        jobs[job_id]['progress_queue'].put({
+                            'type': 'stream_ready',
+                            'data': {
+                                'stream_url': f"/api/stream/video/{output_filename}",
+                                'output_video_id': output_filename
+                            }
+                        })
+                    except:
+                        pass
 
             update_job_status(job_id, 'complete')
             logger.info(f"Background processing completed for job {job_id}")
@@ -522,8 +536,12 @@ def get_job_status(job_id):
             'completed_at': job['completed_at']
         }
 
-        if job['status'] == 'complete' and job['output_video_id']:
+        # Always include stream URL if output_video_id exists (even during processing)
+        if job['output_video_id']:
+            response_data['stream_url'] = f"/api/stream/video/{job['output_video_id']}"
             response_data['download_url'] = f"/api/download/{job['output_video_id']}"
+
+        if job['status'] == 'complete':
             response_data['stats'] = job.get('stats', {})
 
         return jsonify(response_data), 200
@@ -558,20 +576,28 @@ def stream_progress(job_id):
         # Stream updates
         while True:
             try:
-                # Check if job is complete
-                current_job = get_job(job_id)
-                if not current_job or current_job['status'] in ['complete', 'failed', 'cancelled']:
-                    # Send final update
-                    yield f"data: {json.dumps({'type': 'status', 'data': {'status': current_job['status'] if current_job else 'unknown'}})}\n\n"
-                    break
-
                 # Get progress update (timeout to check status periodically)
                 try:
                     update = progress_queue.get(timeout=1)
                     yield f"data: {json.dumps(update)}\n\n"
                 except:
-                    # Send keepalive
+                    # No update available, send keepalive
                     yield f": keepalive\n\n"
+
+                # Check if job is complete after processing any queued messages
+                current_job = get_job(job_id)
+                if not current_job or current_job['status'] in ['complete', 'failed', 'cancelled']:
+                    # Drain any remaining messages in the queue
+                    while not progress_queue.empty():
+                        try:
+                            update = progress_queue.get_nowait()
+                            yield f"data: {json.dumps(update)}\n\n"
+                        except:
+                            break
+
+                    # Send final status update
+                    yield f"data: {json.dumps({'type': 'status', 'data': {'status': current_job['status'] if current_job else 'unknown'}})}\n\n"
+                    break
 
             except GeneratorExit:
                 break
@@ -726,6 +752,94 @@ def download_video(video_id):
 
     except Exception as e:
         logger.error(f"Download error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/stream/video/<video_id>", methods=["GET"])
+def stream_video(video_id):
+    """
+    Stream video with HTTP Range support for progressive playback
+    Supports streaming in-progress videos for real-time preview
+
+    Args:
+        video_id: Video filename (can be in-progress or completed)
+
+    Returns:
+        Video stream with Range support
+    """
+    try:
+        file_path = PROCESSED_FOLDER / video_id
+
+        if not file_path.exists():
+            return jsonify({"error": f"Video not found: {video_id}"}), 404
+
+        # Get file size
+        file_size = os.path.getsize(file_path)
+
+        # Parse Range header
+        range_header = request.headers.get('Range')
+
+        if not range_header:
+            # No range requested, send entire file
+            def generate():
+                with open(str(file_path), 'rb') as f:
+                    while True:
+                        chunk = f.read(1024 * 1024)  # 1MB chunks
+                        if not chunk:
+                            break
+                        yield chunk
+
+            return Response(
+                stream_with_context(generate()),
+                mimetype='video/mp4',
+                headers={
+                    'Content-Length': str(file_size),
+                    'Accept-Ranges': 'bytes',
+                    'Cache-Control': 'no-cache',
+                }
+            )
+
+        # Parse range request (format: "bytes=start-end")
+        try:
+            byte_range = range_header.replace('bytes=', '').split('-')
+            start = int(byte_range[0]) if byte_range[0] else 0
+            end = int(byte_range[1]) if byte_range[1] else file_size - 1
+
+            # Ensure valid range
+            if start >= file_size:
+                return Response(status=416)  # Range Not Satisfiable
+
+            end = min(end, file_size - 1)
+            length = end - start + 1
+
+            def generate_range():
+                with open(str(file_path), 'rb') as f:
+                    f.seek(start)
+                    remaining = length
+                    while remaining > 0:
+                        chunk_size = min(1024 * 1024, remaining)  # 1MB chunks
+                        chunk = f.read(chunk_size)
+                        if not chunk:
+                            break
+                        remaining -= len(chunk)
+                        yield chunk
+
+            return Response(
+                stream_with_context(generate_range()),
+                status=206,  # Partial Content
+                mimetype='video/mp4',
+                headers={
+                    'Content-Range': f'bytes {start}-{end}/{file_size}',
+                    'Content-Length': str(length),
+                    'Accept-Ranges': 'bytes',
+                    'Cache-Control': 'no-cache',
+                }
+            )
+        except (ValueError, IndexError):
+            return Response(status=416)  # Range Not Satisfiable
+
+    except Exception as e:
+        logger.error(f"Stream video error: {e}")
         return jsonify({"error": str(e)}), 500
 
 

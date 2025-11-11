@@ -1,5 +1,5 @@
 import React, { forwardRef, useState } from 'react';
-import { Maximize2, Minimize2, Monitor, Edit3, Eye } from 'lucide-react';
+import { Maximize2, Minimize2, Monitor, Edit3, Eye, Loader2 } from 'lucide-react';
 import { IconButton } from '../common/IconButton';
 import { ViewMode } from '../../types';
 import { cn } from '../../utils/cn';
@@ -10,11 +10,20 @@ interface VideoPlayerProps {
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
   filters?: string[];
+  isProcessing?: boolean;
 }
 
 export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
-  ({ src, onLoadedMetadata, viewMode = 'editor', onViewModeChange, filters = [] }, ref) => {
+  ({ src, onLoadedMetadata, viewMode = 'editor', onViewModeChange, filters = [], isProcessing = false }, ref) => {
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isBuffering, setIsBuffering] = useState(true);
+    const [hasError, setHasError] = useState(false);
+
+    // Reset buffering state when src changes
+    React.useEffect(() => {
+      setIsBuffering(true);
+      setHasError(false);
+    }, [src]);
 
     const toggleFullscreen = async () => {
       if (!document.fullscreenElement) {
@@ -104,10 +113,26 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
             key={src}
             onLoadedMetadata={(e) => {
               console.log('Video metadata loaded, duration:', (e.target as HTMLVideoElement).duration);
+              setIsBuffering(false);
+              setHasError(false);
               onLoadedMetadata?.();
+            }}
+            onLoadedData={() => {
+              setIsBuffering(false);
+            }}
+            onCanPlay={() => {
+              setIsBuffering(false);
+            }}
+            onWaiting={() => {
+              setIsBuffering(true);
+            }}
+            onPlaying={() => {
+              setIsBuffering(false);
             }}
             onError={(e) => {
               console.error('Video load error:', e);
+              setHasError(true);
+              setIsBuffering(false);
             }}
             controls
             crossOrigin="anonymous"
@@ -117,6 +142,19 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
               filter: appliedFilters || 'none',
             }}
           />
+
+          {/* Buffering/Processing Overlay */}
+          {(isBuffering || isProcessing) && !hasError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 pointer-events-none">
+              <Loader2 className="w-16 h-16 text-[#ff3c00] animate-spin mb-4" />
+              <p className="text-lg text-white font-semibold">
+                {isProcessing ? 'Video Processing...' : 'Loading Video...'}
+              </p>
+              <p className="text-sm text-gray-300 mt-2">
+                {isProcessing ? 'Your video is being generated' : 'Please wait'}
+              </p>
+            </div>
+          )}
 
           {/* Theater Mode Overlay */}
           {viewMode === 'theater' && (
