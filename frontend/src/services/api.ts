@@ -229,7 +229,8 @@ export async function processVideoWithAI(
         apply_to: applyTo,
         no_person_behavior: noPersonBehavior,
         confidence_threshold: confidenceThreshold,
-        use_sam: true,
+        // use_sam: true, // Enable SAM for better segmentation
+        // Disabling here because of performance + SAM is not pushed to git
       }),
     });
 
