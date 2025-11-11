@@ -10,11 +10,13 @@ import { cn } from '../../utils/cn';
 interface VideoUploadProps {
   onUploadComplete: (video: Video) => void;
   onUploadError?: (error: string) => void;
+  onUseDefaultVideo?: () => void;
 }
 
 export const VideoUpload: React.FC<VideoUploadProps> = ({
   onUploadComplete,
   onUploadError,
+  onUseDefaultVideo,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -145,10 +147,10 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className="w-full max-w-2xl mx-auto rounded-xl">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-notion-text-primary">Upload Video</h3>
+          <h3 className="text-lg font-bold text-notion-text-primary">Upload Video</h3>
           {selectedFile && uploadStatus === 'idle' && (
             <Button
               variant="ghost"
@@ -194,35 +196,45 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
               </div>
 
               <div className="space-y-2">
-                <p className="text-notion-text-primary font-medium">
+                <p className="text-notion-text-primary font-bold">
                   {isDragging ? 'Drop video here' : 'Drag and drop your video here'}
                 </p>
-                <p className="text-sm text-notion-text-tertiary">
+                <p className="text-sm text-notion-text-tertiary font-semibold">
                   or
                 </p>
-                <Button variant="secondary" onClick={handleBrowseClick}>
+                <Button variant="secondary" onClick={handleBrowseClick} className="font-bold">
                   Browse Files
                 </Button>
               </div>
 
-              <div className="text-xs text-notion-text-tertiary space-y-1">
+              <div className="text-xs text-notion-text-tertiary space-y-1 font-semibold">
                 <p>Supported formats: MP4, WebM, MOV, AVI</p>
                 <p>Maximum file size: {formatFileSize(maxFileSize)}</p>
               </div>
+
+              {onUseDefaultVideo && (
+                <div className="pt-4 border-t border-notion-border">
+                  <p className="text-sm text-notion-text-secondary font-semibold mb-2">
+                    Or try it out with a <Button variant="secondary" onClick={onUseDefaultVideo} className="font-bold ">
+                      Use Sample Video
+                    </Button>
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : (
           <div className="space-y-4">
             {/* File Info */}
-            <div className="flex items-start gap-3 p-4 bg-notion-bg-secondary rounded-notion">
-              <div className="w-10 h-10 rounded-notion bg-notion-accent-blue flex items-center justify-center flex-shrink-0">
+            <div className="flex items-start gap-3 p-4 bg-notion-bg-secondary rounded-xl">
+              <div className="w-10 h-10 rounded-xl bg-notion-accent-blue flex items-center justify-center flex-shrink-0">
                 <Film className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-notion-text-primary truncate">
+                <p className="text-sm font-bold text-notion-text-primary truncate">
                   {selectedFile.name}
                 </p>
-                <p className="text-xs text-notion-text-tertiary">
+                <p className="text-xs text-notion-text-tertiary font-semibold">
                   {formatFileSize(selectedFile.size)}
                 </p>
               </div>
@@ -238,8 +250,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
             {uploadStatus === 'uploading' && uploadProgress && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-notion-text-secondary">Uploading...</span>
-                  <span className="text-notion-text-primary font-medium">
+                  <span className="text-notion-text-secondary font-semibold">Uploading...</span>
+                  <span className="text-notion-text-primary font-bold">
                     {uploadProgress.percentage.toFixed(0)}%
                   </span>
                 </div>
@@ -254,7 +266,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
             {/* Success Message */}
             {uploadStatus === 'success' && (
-              <div className="flex items-center gap-2 text-sm text-notion-accent-green p-3 bg-notion-surface-green rounded-notion">
+              <div className="flex items-center gap-2 text-sm text-notion-accent-green p-3 bg-notion-surface-green rounded-xl font-semibold">
                 <CheckCircle className="w-4 h-4" />
                 <span>Video uploaded successfully!</span>
               </div>
@@ -262,7 +274,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
             {/* Error Message */}
             {uploadStatus === 'error' && errorMessage && (
-              <div className="flex items-start gap-2 text-sm text-notion-accent-red p-3 bg-notion-surface-red rounded-notion">
+              <div className="flex items-start gap-2 text-sm text-notion-accent-red p-3 bg-notion-surface-red rounded-xl font-semibold">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>{errorMessage}</span>
               </div>
@@ -274,11 +286,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                 <Button
                   variant="primary"
                   onClick={handleUpload}
-                  className="flex-1"
+                  className="flex-1 font-bold"
                 >
                   Upload Video
                 </Button>
-                <Button variant="secondary" onClick={handleCancel}>
+                <Button variant="secondary" onClick={handleCancel} className="font-bold">
                   Cancel
                 </Button>
               </div>

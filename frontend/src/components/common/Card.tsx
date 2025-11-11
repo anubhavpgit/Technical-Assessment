@@ -26,7 +26,8 @@ export const Card: React.FC<CardProps> = ({
   return (
     <div
       className={cn(
-        'bg-white rounded-notion border border-notion-border shadow-notion transition-all duration-200',
+        'bg-white border border-notion-border shadow-notion transition-all duration-200',
+        !className?.includes('rounded') && 'rounded-notion',
         hover && 'hover:shadow-notion-md cursor-pointer',
         paddingClasses[padding],
         onClick && 'cursor-pointer',
