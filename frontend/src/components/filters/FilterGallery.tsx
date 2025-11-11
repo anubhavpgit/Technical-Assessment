@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '../common/Card';
 import { Filter } from '../../types';
 import { FILTERS } from '../../constants/filters';
@@ -42,8 +42,6 @@ interface FilterCardProps {
 }
 
 const FilterCard: React.FC<FilterCardProps> = ({ filter, isSelected, onSelect }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <Card
       padding="none"
@@ -53,8 +51,6 @@ const FilterCard: React.FC<FilterCardProps> = ({ filter, isSelected, onSelect })
         'relative overflow-hidden transition-all duration-200 cursor-pointer group flex-shrink-0',
         isSelected && 'ring-2 ring-notion-accent-blue shadow-notion-md'
       )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Horizontal Layout */}
       <div className="flex items-center gap-3 p-4 min-w-[180px]">

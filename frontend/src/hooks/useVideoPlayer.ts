@@ -125,7 +125,7 @@ export const useVideoPlayer = () => {
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('volumechange', handleVolumeChange);
     };
-  }, [videoRef.current]);
+  }, []);
 
   return {
     videoRef,

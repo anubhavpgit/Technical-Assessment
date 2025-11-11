@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Upload, Film, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, Film, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '../common/Button';
 import { Card } from '../common/Card';
 import { uploadVideo } from '../../services/api';
@@ -14,6 +14,9 @@ interface VideoUploadProps {
   currentVideo?: Video | null;
 }
 
+const ACCEPTED_FORMATS = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+
 export const VideoUpload: React.FC<VideoUploadProps> = ({
   onUploadComplete,
   onUploadError,
@@ -27,18 +30,15 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   const [errorMessage, setErrorMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const acceptedFormats = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
-  const maxFileSize = 500 * 1024 * 1024; // 500MB
-
-  const validateFile = (file: File): string | null => {
-    if (!acceptedFormats.includes(file.type)) {
+  const validateFile = useCallback((file: File): string | null => {
+    if (!ACCEPTED_FORMATS.includes(file.type)) {
       return 'Invalid file format. Please upload MP4, WebM, MOV, or AVI files.';
     }
-    if (file.size > maxFileSize) {
-      return `File size exceeds ${formatFileSize(maxFileSize)}. Please upload a smaller file.`;
+    if (file.size > MAX_FILE_SIZE) {
+      return `File size exceeds ${formatFileSize(MAX_FILE_SIZE)}. Please upload a smaller file.`;
     }
     return null;
-  };
+  }, []);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -127,16 +127,6 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     }
   };
 
-  const handleCancel = () => {
-    setSelectedFile(null);
-    setUploadProgress(null);
-    setUploadStatus('idle');
-    setErrorMessage('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
   const handleBrowseClick = () => {
     fileInputRef.current?.click();
   };
@@ -172,7 +162,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept={acceptedFormats.join(',')}
+              accept={ACCEPTED_FORMATS.join(',')}
               onChange={handleFileSelect}
               className="hidden"
             />
@@ -202,7 +192,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
               <div className="text-xs sm:text-sm lg:text-base text-notion-text-tertiary space-y-1 sm:space-y-1.5 lg:space-y-2 font-semibold">
                 <p>Supported formats: MP4, WebM, MOV, AVI</p>
-                <p>Maximum file size: {formatFileSize(maxFileSize)}</p>
+                <p>Maximum file size: {formatFileSize(MAX_FILE_SIZE)}</p>
               </div>
 
               {onUseDefaultVideo && (

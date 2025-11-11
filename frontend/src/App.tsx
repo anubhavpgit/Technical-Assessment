@@ -9,7 +9,6 @@ import { Button } from './components/common/Button';
 import { Card } from './components/common/Card';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
 import { Video, ViewMode, TimelineItem } from './types';
-import { generateId } from './utils/formatters';
 import { FILTERS } from './constants/filters';
 import { videoUrl } from './consts';
 import { uploadVideo, startProcessingJob, connectToProgressStream, getJobStatus, extractFilterPreviews } from './services/api';
