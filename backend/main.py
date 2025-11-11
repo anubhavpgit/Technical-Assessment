@@ -151,6 +151,9 @@ def process_video():
         apply_to: str - Where to apply (background, person)
         no_person_behavior: str - What to do when no person detected
         confidence_threshold: float - Detection confidence (0.0-1.0)
+        region_aware: bool - Only process column/region where person appears (default: True)
+        roi_expansion: float - Region expansion factor 0.0-1.0 (default: 0.3)
+        boundary_refinement: str - Refinement level: minimal, balanced, aggressive (default: balanced)
 
     Returns:
         JSON with processing statistics and processed video path
@@ -167,6 +170,9 @@ def process_video():
         apply_to = data.get('apply_to', 'background')
         no_person_behavior = data.get('no_person_behavior', 'keep_original')
         confidence_threshold = data.get('confidence_threshold', 0.5)
+        region_aware = data.get('region_aware', True)
+        roi_expansion = data.get('roi_expansion', 0.3)
+        boundary_refinement = data.get('boundary_refinement', 'balanced')
 
         # Validate input video exists
         input_path = UPLOAD_FOLDER / video_id
@@ -179,7 +185,8 @@ def process_video():
 
         logger.info(f"Starting video processing: {video_id}")
         logger.info(f"Settings - Filter: {filter_type}, Apply to: {apply_to}, "
-                   f"Confidence: {confidence_threshold}")
+                   f"Confidence: {confidence_threshold}, Region-aware: {region_aware}, "
+                   f"Boundary refinement: {boundary_refinement}")
 
         # Get processor and process video
         processor = get_processor()
@@ -189,7 +196,10 @@ def process_video():
             filter_type=filter_type,
             apply_to=apply_to,
             no_person_behavior=no_person_behavior,
-            confidence_threshold=confidence_threshold
+            confidence_threshold=confidence_threshold,
+            region_aware=region_aware,
+            roi_expansion=roi_expansion,
+            boundary_refinement=boundary_refinement
         )
 
         # Add output info to stats
@@ -287,4 +297,4 @@ if __name__ == "__main__":
     logger.info("Starting Overlap Video Processing Server")
     logger.info(f"Upload folder: {UPLOAD_FOLDER}")
     logger.info(f"Processed folder: {PROCESSED_FOLDER}")
-    app.run(host='0.0.0.0', port=8080, debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=8080, debug=True, use_reloader=True)
