@@ -1,8 +1,8 @@
 import React from 'react';
-import { FaceDetection } from '../App';
+import { Detection } from '../types';
 
 interface FaceDetectionOverlayProps {
-  detections: FaceDetection[];
+  detections: Detection[];
   videoRef: React.RefObject<HTMLVideoElement>;
 }
 
