@@ -1,11 +1,16 @@
 # Video Processing Folders
 uploads/
 processed/
+previews/
+segments/
 *.mp4
 *.mov
 *.avi
 *.webm
 *.mkv
+*.jpg
+*.jpeg
+*.png
 
 # Python
 __pycache__/

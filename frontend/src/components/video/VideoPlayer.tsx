@@ -104,6 +104,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
             onLoadedMetadata={onLoadedMetadata}
             controls
             crossOrigin="anonymous"
+            preload="metadata"
             className="w-full h-full object-contain"
             style={{
               filter: appliedFilters || 'none',

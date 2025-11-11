@@ -30,11 +30,11 @@ export const VideoTimeline: React.FC<VideoTimelineProps> = ({
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineRef.current) return;
+    if (!timelineRef.current || !duration || duration <= 0) return;
 
     const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
+    const percentage = Math.max(0, Math.min(1, x / rect.width));
     const time = percentage * duration;
 
     onSeek(Math.max(0, Math.min(duration, time)));
@@ -74,6 +74,11 @@ export const VideoTimeline: React.FC<VideoTimelineProps> = ({
 
       {/* Timeline Track */}
       <div className="space-y-2">
+        {duration <= 0 && (
+          <div className="text-center py-4 text-notion-text-tertiary text-sm">
+            Loading video timeline...
+          </div>
+        )}
         <div
           ref={timelineRef}
           className="relative h-16 bg-notion-bg-secondary rounded-notion overflow-hidden cursor-pointer group"
@@ -96,16 +101,16 @@ export const VideoTimeline: React.FC<VideoTimelineProps> = ({
 
           {/* Timeline Items (Filters) */}
           <div className="absolute inset-0 top-0 h-8">
-            {timelineItems.map((item, index) => {
-              const left = (item.startTime / duration) * 100;
-              const width = ((item.endTime - item.startTime) / duration) * 100;
+            {duration > 0 && timelineItems.map((item, index) => {
+              const left = Math.max(0, Math.min(100, (item.startTime / duration) * 100));
+              const width = Math.max(0, Math.min(100 - left, ((item.endTime - item.startTime) / duration) * 100));
               const color = getItemColor(index);
 
               return (
                 <div
                   key={item.id}
                   className={cn(
-                    'absolute h-full flex items-center justify-between px-2 text-white text-xs font-medium transition-all duration-200 group/item',
+                    'absolute h-full flex items-center justify-between px-2 text-white text-xs font-medium transition-all duration-200 group/item cursor-pointer',
                     color,
                     hoveredItem === item.id && 'ring-2 ring-white ring-inset shadow-lg z-10'
                   )}
@@ -115,6 +120,10 @@ export const VideoTimeline: React.FC<VideoTimelineProps> = ({
                   }}
                   onMouseEnter={() => setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
+                  onClick={() => {
+                    // Don't stop propagation - let the click bubble to timeline for seeking
+                    // The timeline click handler will handle the seek
+                  }}
                 >
                   <span className="truncate">{item.filterName}</span>
                   <button
@@ -132,14 +141,16 @@ export const VideoTimeline: React.FC<VideoTimelineProps> = ({
           </div>
 
           {/* Playhead */}
-          <div
-            className="absolute top-0 bottom-0 w-0.5 bg-notion-accent-red z-20 pointer-events-none"
-            style={{
-              left: `${(currentTime / duration) * 100}%`,
-            }}
-          >
-            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-notion-accent-red rounded-full" />
-          </div>
+          {duration > 0 && (
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-notion-accent-red z-20 pointer-events-none"
+              style={{
+                left: `${Math.max(0, Math.min(100, (currentTime / duration) * 100))}%`,
+              }}
+            >
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-notion-accent-red rounded-full" />
+            </div>
+          )}
 
           {/* Hover indicator */}
           <div className="absolute inset-0 border-2 border-transparent group-hover:border-notion-border rounded-notion pointer-events-none transition-colors" />
