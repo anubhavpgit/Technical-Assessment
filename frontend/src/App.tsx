@@ -433,19 +433,15 @@ function App() {
                     currentVideo={currentVideo}
                   />
 
-                  {/* Filter Previews - Show after video upload and persist after processing */}
-                  {currentVideo && filterPreviews.length > 0 && (
+                  {/* Filter Previews - Show before processing only */}
+                  {currentVideo && filterPreviews.length > 0 && processingStatus !== 'success' && (
                     <div className="mt-6">
                       <Card className="rounded-lg">
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <div>
                               <h3 className="text-base font-bold text-notion-text-primary">Select a Filter Style</h3>
-                              <p className="text-sm text-notion-text-secondary">
-                                {processingStatus === 'success'
-                                  ? 'Change the filter and reprocess to update your video'
-                                  : 'Choose how you want to process your video'}
-                              </p>
+                              <p className="text-sm text-notion-text-secondary">Choose how you want to process your video</p>
                             </div>
                           </div>
 
@@ -509,8 +505,8 @@ function App() {
                     </div>
                   )}
 
-                  {/* Process/Reprocess Button - Always show when video is uploaded */}
-                  {currentVideo && (
+                  {/* Process Button - Show before processing only */}
+                  {currentVideo && processingStatus !== 'success' && (
                     <div className="flex flex-col items-center gap-4 mt-6">
                       <Button
                         variant="primary"
@@ -528,8 +524,6 @@ function App() {
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Processing Video...
                           </>
-                        ) : processingStatus === 'success' ? (
-                          `Reprocess with ${selectedFilterType.charAt(0).toUpperCase() + selectedFilterType.slice(1)}`
                         ) : (
                           'Process Video'
                         )}
@@ -623,6 +617,79 @@ function App() {
                         filters={appliedFilters}
                       />
                     </Card>
+
+                    {/* Filter Previews - Show after processing to allow reprocessing with different filter */}
+                    {filterPreviews.length > 0 && (
+                      <Card className="rounded-lg">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-base font-bold text-notion-text-primary">Change Filter Style</h3>
+                              <p className="text-sm text-notion-text-secondary">
+                                Select a different filter and reprocess to update your video
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {filterPreviews.map((preview) => (
+                              <button
+                                key={preview.filter_id}
+                                onClick={() => setSelectedFilterType(preview.filter_id as 'grayscale' | 'blur' | 'sepia')}
+                                className={`relative group overflow-hidden rounded-lg transition-all duration-200 ${
+                                  selectedFilterType === preview.filter_id
+                                    ? 'ring-2 ring-[#ff3c00] shadow-lg'
+                                    : 'ring-1 ring-notion-border hover:ring-notion-accent-blue'
+                                }`}
+                              >
+                                <div className="aspect-video bg-black">
+                                  {preview.error ? (
+                                    <div className="flex items-center justify-center h-full text-sm text-notion-accent-red">
+                                      Error loading preview
+                                    </div>
+                                  ) : (
+                                    <img
+                                      src={`http://127.0.0.1:8080${preview.preview_url}`}
+                                      alt={preview.filter_name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  )}
+                                </div>
+                                <div className="p-3 bg-white/95 backdrop-blur-sm">
+                                  <p className="text-sm font-semibold text-notion-text-primary text-center">
+                                    {preview.filter_name}
+                                  </p>
+                                </div>
+                                {selectedFilterType === preview.filter_id && (
+                                  <div className="absolute top-2 right-2 w-6 h-6 bg-[#ff3c00] rounded-full flex items-center justify-center">
+                                    <svg
+                                      className="w-4 h-4 text-white"
+                                      fill="none"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Reprocess Button */}
+                          <Button
+                            variant="primary"
+                            onClick={handleProcessVideo}
+                            className="w-full font-semibold text-sm px-6 py-3"
+                          >
+                            {`Reprocess with ${selectedFilterType.charAt(0).toUpperCase() + selectedFilterType.slice(1)}`}
+                          </Button>
+                        </div>
+                      </Card>
+                    )}
 
                     {/* Keyframes Row */}
                     <Card className="rounded-lg">
