@@ -802,6 +802,160 @@ def get_filters():
     return jsonify({"filters": filters}), 200
 
 
+@app.route("/api/extract-filter-previews", methods=["POST"])
+def extract_filter_previews():
+    """
+    Extract first keyframe and generate filter previews for all available filters
+    This is image processing with human detection applied to a single frame
+
+    Request body:
+        video_id: str - Video filename from upload
+        confidence_threshold: float - Detection confidence (0.0-1.0)
+        apply_to: str - Where to apply filter ('background' or 'person')
+
+    Returns:
+        JSON with array of filter previews (base64 encoded images)
+    """
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        if not data or 'video_id' not in data:
+            return jsonify({"error": "video_id is required"}), 400
+
+        video_id = data['video_id']
+        confidence_threshold = data.get('confidence_threshold', 0.5)
+        apply_to = data.get('apply_to', 'background')
+
+        # Validate input video exists
+        input_path = UPLOAD_FOLDER / video_id
+        if not input_path.exists():
+            return jsonify({"error": f"Video not found: {video_id}"}), 404
+
+        logger.info(f"Extracting filter previews for video: {video_id}")
+
+        # Open video and extract first keyframe
+        cap = cv2.VideoCapture(str(input_path))
+        if not cap.isOpened():
+            return jsonify({"error": f"Could not open video: {video_id}"}), 500
+
+        # Read first frame
+        ret, frame = cap.read()
+        cap.release()
+
+        if not ret or frame is None:
+            return jsonify({"error": "Could not extract first frame from video"}), 500
+
+        logger.info(f"Extracted first frame: {frame.shape}")
+
+        # Get processor
+        processor = get_processor(use_sam=False)  # Use YOLO-only for speed
+
+        # Available filters
+        filter_types = ['grayscale', 'blur', 'sepia']
+        previews = []
+
+        # Generate preview for each filter
+        for filter_type in filter_types:
+            try:
+                # Run person detection on the frame
+                results = processor.model.predict(
+                    frame,
+                    classes=[0],  # class 0 = person in COCO dataset
+                    conf=confidence_threshold,
+                    verbose=False,
+                    device=processor._get_device()
+                )
+
+                # Apply filter based on detection
+                if results[0].masks is not None and len(results[0].masks) > 0:
+                    # Person detected - apply selective filter
+                    masks = results[0].masks.data.cpu().numpy()
+
+                    # Combine all person masks
+                    combined_mask = masks[0]
+                    for i in range(1, len(masks)):
+                        combined_mask = np.maximum(combined_mask, masks[i])
+
+                    height, width = frame.shape[:2]
+                    combined_mask = cv2.resize(combined_mask, (width, height))
+                    combined_mask = (combined_mask > 0.5).astype(np.uint8) * 255
+
+                    # Apply filter
+                    if filter_type == 'grayscale':
+                        filtered = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                        filtered = cv2.cvtColor(filtered, cv2.COLOR_GRAY2BGR)
+                    elif filter_type == 'blur':
+                        filtered = cv2.GaussianBlur(frame, (21, 21), 0)
+                    else:  # sepia
+                        kernel = np.array([[0.272, 0.534, 0.131],
+                                         [0.349, 0.686, 0.168],
+                                         [0.393, 0.769, 0.189]])
+                        filtered = cv2.transform(frame, kernel)
+                        filtered = np.clip(filtered, 0, 255).astype(np.uint8)
+
+                    # Composite based on mask
+                    mask_3ch = cv2.cvtColor(combined_mask, cv2.COLOR_GRAY2BGR) / 255.0
+                    if apply_to == 'background':
+                        # Filter background, keep person in color
+                        output_frame = (frame * mask_3ch + filtered * (1 - mask_3ch)).astype(np.uint8)
+                    else:
+                        # Filter person, keep background in color
+                        output_frame = (filtered * mask_3ch + frame * (1 - mask_3ch)).astype(np.uint8)
+                else:
+                    # No person detected - apply filter to entire frame
+                    if filter_type == 'grayscale':
+                        output_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                        output_frame = cv2.cvtColor(output_frame, cv2.COLOR_GRAY2BGR)
+                    elif filter_type == 'blur':
+                        output_frame = cv2.GaussianBlur(frame, (21, 21), 0)
+                    else:  # sepia
+                        kernel = np.array([[0.272, 0.534, 0.131],
+                                         [0.349, 0.686, 0.168],
+                                         [0.393, 0.769, 0.189]])
+                        output_frame = cv2.transform(frame, kernel)
+                        output_frame = np.clip(output_frame, 0, 255).astype(np.uint8)
+
+                # Save preview image to file
+                preview_filename = f"{video_id}_{filter_type}_preview.jpg"
+                preview_path = PREVIEW_FOLDER / preview_filename
+                cv2.imwrite(str(preview_path), output_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+
+                # Add to previews array
+                previews.append({
+                    'filter_id': filter_type,
+                    'filter_name': filter_type.capitalize(),
+                    'preview_url': f"/api/preview/{preview_filename}"
+                })
+
+                logger.info(f"Generated preview for {filter_type} filter")
+
+            except Exception as e:
+                logger.error(f"Error generating preview for {filter_type}: {e}")
+                # Add error placeholder
+                previews.append({
+                    'filter_id': filter_type,
+                    'filter_name': filter_type.capitalize(),
+                    'error': str(e)
+                })
+
+        logger.info(f"Successfully generated {len(previews)} filter previews")
+
+        return jsonify({
+            "success": True,
+            "video_id": video_id,
+            "previews": previews,
+            "frame_size": {
+                "width": frame.shape[1],
+                "height": frame.shape[0]
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Extract filter previews error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     logger.info("Starting Overlap Video Processing Server")
     logger.info(f"Upload folder: {UPLOAD_FOLDER}")
