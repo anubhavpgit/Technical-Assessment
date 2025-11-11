@@ -63,7 +63,7 @@ export interface Detection {
 }
 
 // Viewing Mode Types
-export type ViewMode = 'theater' | 'window' | 'editor';
+export type ViewMode = 'default' | 'theater' | 'camcorder' | 'editor';
 
 // Upload Types
 export interface UploadProgress {

@@ -20,7 +20,7 @@ function App() {
     const savedVideo = localStorage.getItem('overlap-current-video');
     return savedVideo ? JSON.parse(savedVideo) : null;
   });
-  const [viewMode, setViewMode] = useState<ViewMode>('editor');
+  const [viewMode, setViewMode] = useState<ViewMode>('default');
 
   // Processing state
   const [processingStatus, setProcessingStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
@@ -214,7 +214,7 @@ function App() {
         'background',
         'keep_original',
         0.5,
-        false // use_sam
+        true // use_sam
       );
 
       if (!response.success || !response.data?.job_id) {
@@ -461,11 +461,10 @@ function App() {
                                   key={preview.filter_id}
                                   onClick={() => setSelectedFilterType(preview.filter_id as 'grayscale' | 'blur' | 'sepia')}
                                   disabled={processingStatus === 'processing'}
-                                  className={`relative group overflow-hidden rounded-lg transition-all duration-200 ${
-                                    selectedFilterType === preview.filter_id
+                                  className={`relative group overflow-hidden rounded-lg transition-all duration-200 ${selectedFilterType === preview.filter_id
                                       ? 'ring-2 ring-[#ff3c00] shadow-lg'
                                       : 'ring-1 ring-notion-border hover:ring-notion-accent-blue'
-                                  } ${processingStatus === 'processing' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    } ${processingStatus === 'processing' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   <div className="aspect-video bg-black">
                                     {preview.error ? (
@@ -658,11 +657,10 @@ function App() {
                               <button
                                 key={preview.filter_id}
                                 onClick={() => setSelectedFilterType(preview.filter_id as 'grayscale' | 'blur' | 'sepia')}
-                                className={`relative group overflow-hidden rounded-lg transition-all duration-200 ${
-                                  selectedFilterType === preview.filter_id
+                                className={`relative group overflow-hidden rounded-lg transition-all duration-200 ${selectedFilterType === preview.filter_id
                                     ? 'ring-2 ring-[#ff3c00] shadow-lg'
                                     : 'ring-1 ring-notion-border hover:ring-notion-accent-blue'
-                                }`}
+                                  }`}
                               >
                                 <div className="aspect-video bg-black">
                                   {preview.error ? (
