@@ -93,10 +93,6 @@ function App() {
 
   const handleVideoUpload = (video: Video) => {
     setCurrentVideo(video);
-    // Scroll to editor section after video is selected
-    setTimeout(() => {
-      editorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
   };
 
   const handleUseDefaultVideo = async () => {
@@ -130,10 +126,6 @@ function App() {
         };
         setCurrentVideo(defaultVideo);
         setIsUploadingSample(false);
-        // Scroll to editor section after video is selected
-        setTimeout(() => {
-          editorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
       } else {
         setIsUploadingSample(false);
       }
@@ -345,65 +337,48 @@ function App() {
                   onUploadComplete={handleVideoUpload}
                   onUploadError={(error) => console.error('Upload error:', error)}
                   onUseDefaultVideo={handleUseDefaultVideo}
+                  currentVideo={currentVideo}
                 />
+
+                {/* Process Button - Show when video is selected but not yet processed */}
+                {currentVideo && processingStatus !== 'success' && (
+                  <div className="flex flex-col items-center gap-4 mt-6">
+                    <Button
+                      variant="primary"
+                      onClick={handleProcessVideo}
+                      disabled={isUploadingSample || processingStatus === 'processing' || !currentVideo?.video_id}
+                      className="font-semibold text-sm px-6 py-3"
+                    >
+                      {isUploadingSample ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Loading Sample Video...
+                        </>
+                      ) : processingStatus === 'processing' ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Processing Video...
+                        </>
+                      ) : (
+                        'Process Video'
+                      )}
+                    </Button>
+
+                    {processingStatus === 'error' && processingError && (
+                      <Card className="w-full rounded-lg bg-notion-surface-red border-notion-accent-red">
+                        <p className="text-sm text-notion-accent-red font-semibold">{processingError}</p>
+                      </Card>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Original Video Section - Show when video is selected */}
-            {currentVideo && (
-              <div ref={editorSectionRef} className="px-3 sm:px-6 lg:px-8 py-6">
-                <div className="w-full max-w-5xl mx-auto space-y-6">
-                  {/* Video Player */}
-                  <Card className="rounded-lg">
-                    <VideoPlayer
-                      ref={videoRef}
-                      src={currentVideo?.url || ''}
-                      viewMode={viewMode}
-                      onViewModeChange={setViewMode}
-                      filters={appliedFilters}
-                    />
-                  </Card>
-
-                  {/* Process Button - Show if not yet processed */}
-                  {processingStatus !== 'success' && (
-                    <div className="flex flex-col items-center gap-4">
-                      <Button
-                        variant="primary"
-                        onClick={handleProcessVideo}
-                        disabled={isUploadingSample || processingStatus === 'processing' || !currentVideo?.video_id}
-                        className="font-semibold text-sm px-6 py-3"
-                      >
-                        {isUploadingSample ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Loading Sample Video...
-                          </>
-                        ) : processingStatus === 'processing' ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Processing Video...
-                          </>
-                        ) : (
-                          'Process Video'
-                        )}
-                      </Button>
-
-                      {processingStatus === 'error' && processingError && (
-                        <Card className="w-full rounded-lg bg-notion-surface-red border-notion-accent-red">
-                          <p className="text-sm text-notion-accent-red font-semibold">{processingError}</p>
-                        </Card>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Processed Video Section - Only show after successful processing */}
             {processedVideo && processingStatus === 'success' && (
-              <div className="px-3 sm:px-6 lg:px-8 py-6 pb-12">
+              <div ref={editorSectionRef} className="px-3 sm:px-6 lg:px-8 py-6 pb-12">
                 <div className="w-full max-w-5xl mx-auto space-y-6">
-                  <h2 className="text-xl font-bold text-notion-text-primary">Processed Video</h2>
+                  <h2 className="text-xl font-bold text-white">Processed Video</h2>
 
                   {/* Video Player */}
                   <Card className="rounded-lg">

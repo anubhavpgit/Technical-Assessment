@@ -11,12 +11,14 @@ interface VideoUploadProps {
   onUploadComplete: (video: Video) => void;
   onUploadError?: (error: string) => void;
   onUseDefaultVideo?: () => void;
+  currentVideo?: Video | null;
 }
 
 export const VideoUpload: React.FC<VideoUploadProps> = ({
   onUploadComplete,
   onUploadError,
   onUseDefaultVideo,
+  currentVideo,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -142,20 +144,19 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   return (
     <Card className="w-full mx-auto rounded-lg">
       <div className="space-y-4">
-        {selectedFile && uploadStatus === 'idle' && (
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<X className="w-4 h-4" />}
-              onClick={handleCancel}
-            >
-              Clear
-            </Button>
+        {/* Show uploaded video preview if currentVideo exists */}
+        {currentVideo ? (
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-notion-text-primary">Uploaded Video</h3>
+            <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
+              <video
+                src={currentVideo.url}
+                controls
+                className="w-full h-full object-contain"
+              />
+            </div>
           </div>
-        )}
-
-        {!selectedFile ? (
+        ) : !selectedFile ? (
           <div
             className={cn(
               'relative border-2 border-dashed rounded-lg p-8 sm:p-12 lg:p-16 text-center transition-all duration-200',
