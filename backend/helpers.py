@@ -100,9 +100,9 @@ def update_job_progress(job_id, current, total, fps=0, preview_frame=None, previ
                 jobs[job_id]['progress_queue'].put({
                     'type': 'progress',
                     'data': progress_data
-                })
-            except:
-                pass
+                }, block=False)
+            except Exception as e:
+                logger.warning(f"Failed to push progress to queue for job {job_id}: {e}")
 
 
 def update_job_status(job_id, status, error=None):
@@ -123,9 +123,9 @@ def update_job_status(job_id, status, error=None):
                 jobs[job_id]['progress_queue'].put({
                     'type': 'status',
                     'data': {'status': status, 'error': error}
-                })
-            except:
-                pass
+                }, block=False)
+            except Exception as e:
+                logger.warning(f"Failed to push status to queue for job {job_id}: {e}")
 
 
 def add_job_segment(job_id, segment_num):

@@ -246,12 +246,15 @@ def register_routes(app, config):
             SSE stream of progress updates
         """
         def generate():
+            from queue import Empty
+
             job = get_job(job_id)
             if not job:
                 yield f"data: {json.dumps({'error': 'Job not found'})}\n\n"
                 return
 
             progress_queue = job['progress_queue']
+            logger.info(f"SSE stream started for job {job_id}")
 
             # Send initial status
             yield f"data: {json.dumps({'type': 'status', 'data': {'status': job['status']}})}\n\n"
@@ -262,36 +265,46 @@ def register_routes(app, config):
                     # Get progress update (timeout to check status periodically)
                     try:
                         update = progress_queue.get(timeout=1)
+                        logger.debug(f"SSE sending update for job {job_id}: {update.get('type')}")
                         yield f"data: {json.dumps(update)}\n\n"
-                    except:
+                    except Empty:
                         # No update available, send keepalive
                         yield f": keepalive\n\n"
 
                     # Check if job is complete after processing any queued messages
                     current_job = get_job(job_id)
                     if not current_job or current_job['status'] in ['complete', 'failed', 'cancelled']:
+                        logger.info(f"SSE job {job_id} reached terminal status: {current_job['status'] if current_job else 'unknown'}")
                         # Drain any remaining messages in the queue
                         while not progress_queue.empty():
                             try:
                                 update = progress_queue.get_nowait()
                                 yield f"data: {json.dumps(update)}\n\n"
-                            except:
+                            except Empty:
                                 break
 
                         # Send final status update
                         yield f"data: {json.dumps({'type': 'status', 'data': {'status': current_job['status'] if current_job else 'unknown'}})}\n\n"
+                        logger.info(f"SSE stream closed for job {job_id}")
                         break
 
                 except GeneratorExit:
+                    logger.info(f"SSE client disconnected for job {job_id}")
                     break
                 except Exception as e:
-                    logger.error(f"SSE error: {e}")
+                    logger.error(f"SSE error for job {job_id}: {e}", exc_info=True)
                     break
 
-        return Response(stream_with_context(generate()), mimetype='text/event-stream', headers={
-            'Cache-Control': 'no-cache',
-            'X-Accel-Buffering': 'no'
-        })
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+                'Connection': 'keep-alive',
+                'Content-Type': 'text/event-stream'
+            }
+        )
 
     @app.route("/api/jobs/<job_id>/cancel", methods=["DELETE"])
     def cancel_job(job_id):
