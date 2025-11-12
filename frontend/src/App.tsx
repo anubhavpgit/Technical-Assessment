@@ -53,6 +53,9 @@ function App() {
   }>>([]);
   const [isLoadingPreviews, setIsLoadingPreviews] = useState(false);
 
+  // SAM toggle state
+  const [useSam, setUseSam] = useState(false);
+
   // UI state
 
   // Mouse tracking for animated background
@@ -213,7 +216,7 @@ function App() {
         'background',
         'keep_original',
         0.5,
-        false // use_sam
+        useSam // use_sam toggle from state
       );
 
       if (!response.success || !response.data?.job_id) {
@@ -398,8 +401,31 @@ function App() {
                     </div>
                   </div>
 
-                  {currentVideo && (
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    {/* SAM Toggle */}
+                    <div className="flex items-center gap-2 bg-notion-bg-tertiary rounded-lg px-3 py-1.5">
+                      <label htmlFor="sam-toggle" className="text-sm font-medium text-notion-text-secondary cursor-pointer">
+                        SAM
+                      </label>
+                      <button
+                        id="sam-toggle"
+                        type="button"
+                        role="switch"
+                        aria-checked={useSam}
+                        onClick={() => setUseSam(!useSam)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#ff3c00] focus:ring-offset-2 ${
+                          useSam ? 'bg-[#ff3c00]' : 'bg-notion-border'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            useSam ? 'translate-x-5' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {currentVideo && (
                       <Button
                         variant="secondary"
                         size="sm"
@@ -418,8 +444,8 @@ function App() {
                       >
                         Clear Video
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </header>
