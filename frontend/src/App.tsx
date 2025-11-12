@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
 import { VideoPlayer } from './components/video/VideoPlayer';
@@ -423,6 +423,19 @@ function App() {
                           }`}
                         />
                       </button>
+                      {/* Info Icon with Tooltip */}
+                      <div className="relative group">
+                        <Info className="w-4 h-4 text-notion-text-tertiary cursor-help" />
+                        {/* Tooltip */}
+                        <div className="absolute top-full right-0 mt-2 hidden group-hover:block w-72 z-50">
+                          <div className="bg-notion-text-primary text-white text-xs rounded-lg px-3 py-2 shadow-lg">
+                            {/* Arrow pointing up */}
+                            <div className="absolute bottom-full right-4 mb-[-4px] w-2 h-2 bg-notion-text-primary transform rotate-45"></div>
+                            <p className="font-semibold mb-1">SAM Model Required</p>
+                            <p>The SAM model needs to be downloaded separately and placed inside <code className="bg-white/20 px-1 py-0.5 rounded">backend/models/</code> folder since it is not pushed to GitHub.</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {currentVideo && (
