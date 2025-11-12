@@ -253,7 +253,7 @@ function App() {
                 id: jobStatus.data.output_video_id,
                 video_id: jobStatus.data.output_video_id,
                 filename: `Processed - ${currentVideo.filename}`,
-                url: `http://127.0.0.1:8080${jobStatus.data.download_url}`,
+                url: `http://127.0.0.1:8080/api/stream/video/${jobStatus.data.output_video_id}`,
                 duration: jobStatus.data.stats?.video_properties?.duration || 0,
                 resolution: {
                   width: jobStatus.data.stats?.video_properties?.width || 1920,
@@ -334,9 +334,9 @@ function App() {
     >
       <div className="min-h-screen bg-notion-bg-secondary flex items-center justify-center p-3 sm:p-4 lg:p-6">
         {/* Main Container with Background */}
-        <div className="relative w-full max-w-[95vw] min-h-[calc(100vh-3rem)] rounded-3xl overflow-hidden shadow-notion-xl">
+        <div className="relative w-full max-w-[95vw] min-h-[calc(100vh-3rem)] rounded-3xl shadow-notion-xl overflow-hidden">
           {/* Animated Gradient Background */}
-          <div className="absolute inset-0 overflow-hidden rounded-3xl">
+          <div className="absolute inset-0 overflow-hidden rounded-3xl z-0">
             {/* Base gradient layer */}
             <div
               className="absolute inset-0"
@@ -377,9 +377,9 @@ function App() {
           {/* Content Container */}
           <div className="relative z-10 flex flex-col min-h-[calc(100vh-3rem)]">
             {/* Floating Header */}
-            <header className="mx-auto mt-4 sm:mt-6 bg-white/95 backdrop-blur-sm rounded-xl border border-notion-border shadow-notion-md w-full max-w-6xl">
-              <div className="px-4 sm:px-6 lg:px-8 py-5">
-                <div className="flex items-center justify-between">
+            <header className="mx-auto mt-4 sm:mt-6 bg-white/95 backdrop-blur-sm rounded-xl border border-notion-border shadow-notion-md w-full max-w-6xl relative z-50 overflow-visible">
+              <div className="px-4 sm:px-6 lg:px-8 py-5 overflow-visible">
+                <div className="flex items-center justify-between overflow-visible">
                   <div className="flex items-center gap-4">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -401,9 +401,9 @@ function App() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 overflow-visible">
                     {/* SAM Toggle */}
-                    <div className="flex items-center gap-2 bg-notion-bg-tertiary rounded-lg px-3 py-1.5">
+                    <div className="flex items-center gap-2 bg-notion-bg-tertiary rounded-lg px-3 py-1.5 overflow-visible">
                       <label htmlFor="sam-toggle" className="text-sm font-medium text-notion-text-secondary cursor-pointer">
                         SAM
                       </label>
@@ -424,11 +424,11 @@ function App() {
                         />
                       </button>
                       {/* Info Icon with Tooltip */}
-                      <div className="relative group">
+                      <div className="relative group z-[9999]">
                         <Info className="w-4 h-4 text-notion-text-tertiary cursor-help" />
                         {/* Tooltip */}
-                        <div className="absolute top-full right-0 mt-2 hidden group-hover:block w-72 z-50">
-                          <div className="bg-notion-text-primary text-white text-xs rounded-lg px-3 py-2 shadow-lg">
+                        <div className="absolute top-full right-0 mt-2 hidden group-hover:block w-72 z-[9999] pointer-events-none">
+                          <div className="bg-notion-text-primary text-white text-xs rounded-lg px-3 py-2 shadow-2xl border border-white/10 pointer-events-auto">
                             {/* Arrow pointing up */}
                             <div className="absolute bottom-full right-4 mb-[-4px] w-2 h-2 bg-notion-text-primary transform rotate-45"></div>
                             <p className="font-semibold mb-1">SAM Model Required</p>
@@ -443,6 +443,12 @@ function App() {
                         variant="secondary"
                         size="sm"
                         onClick={() => {
+                          // Clean up SSE
+                          if (eventSourceRef.current) {
+                            eventSourceRef.current.close();
+                            eventSourceRef.current = null;
+                          }
+
                           setCurrentVideo(null);
                           setProcessedVideo(null);
                           setProcessingStatus('idle');
